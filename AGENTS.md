@@ -52,4 +52,3 @@ MDCraft — 所见即所得 Markdown 编辑器（Tauri 2 + Rust 核心 + React 1
 - 路径别名 `@` → `src`（vite + tsconfig 双配置）。
 - TS 严格且 `noUnusedLocals`/`noUnusedParameters` 开启——未使用的导入/变量会让 `pnpm build` 失败。
 - UI 组件 `src/ui/`，编辑器逻辑 `src/editor/`，后端抽象与导出 `src/lib/`。
-- `Markdown 支持格式全览.md` 是人工核对渲染的全语法参考文档。
