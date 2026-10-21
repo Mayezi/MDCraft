@@ -1,0 +1,1315 @@
+/* CodeMirror 编辑器外观 —— Live Preview 的所见即所得质感
+   颜色/排版全部引用主题变量（themes/*.css）
+   ⚠ CM6 约束：.cm-line 与块级 widget（表格/公式/属性卡/公式浮层等替换整行的元素）
+   一律禁止垂直 margin——margin 不进 CM6 heightMap，而 DOM 布局含它，
+   两者累积漂移后 posAtCoords 按旧高度映射 → 下方点击整体错行（实测 +32px ≈ 1 行）。
+   垂直间距全部用 padding（含在外框 rect 中，被正确测量）；
+   带描边/背景又需要外留白的 widget 加透明外层包装承担 padding。
+   图片等异步定尺寸内容：加载完成后必须 view.requestMeasure()（widgets.ts 已接） */
+
+/* 等宽字体：必须带中文 fallback（PingFang/YaHei）——
+   纯西文 mono 栈会让代码块内的中文 fallback 到宋体，观感割裂 */
+:root {
+  --mono-font: ui-monospace, "Cascadia Code", Consolas, Menlo, "PingFang SC",
+    "Microsoft YaHei", monospace;
+}
+
+.cm-editor {
+  height: 100%;
+  /* 主编辑区纯色纸面背景：独立于界面底色的 --editor-bg（每主题定义精致纯色），
+     与侧栏/工具条形成层次；不做任何点阵/纹样。回退 var(--bg) 保证无该变量也可用 */
+  background: var(--editor-bg, var(--bg));
+  color: var(--fg);
+  font-size: var(--editor-fs);
+  line-height: var(--editor-lh);
+  font-family: var(--editor-font);
+}
+.cm-editor.cm-focused {
+  outline: none !important;
+}
+.cm-scroller {
+  font-family: var(--editor-font) !important;
+  /* 行高必须打到 .cm-scroller：CM6 baseTheme 动态注入 .cm-scroller{line-height:1.4}，
+     且它是 .cm-line 的继承祖先——仅在 .cm-editor 设置会被恒定覆盖（--editor-lh 从未生效过） */
+  line-height: var(--editor-lh) !important;
+  overflow-y: auto;
+  overflow-x: hidden !important;
+  -webkit-font-smoothing: antialiased;
+}
+.cm-content {
+  /* 默认跟随窗口铺满（无右侧大空白、任意设备自适应）；
+     用户显式设置「内容宽度」(contentWidth) 时经内联 CSS 变量锁定该值 */
+  width: 100%;
+  min-width: 0;
+  max-width: var(--editor-maxw, none);
+  box-sizing: border-box;
+  margin: 0 auto;
+  padding: 28px 40px 45vh !important;
+}
+.cm-line {
+  padding: 0 4px;
+  position: relative; /* 块类型 gutter ::before 的定位锚 */
+}
+/* 原生选区配色（未装 drawSelection，浏览器原生绘制：贴合文字，跨行不横贯左右空白）
+   drawSelection 的矩形模型对跨行选中的行取内容区全宽（代码编辑器惯例），
+   文档编辑器 40px 左右内边距会一并被高亮——改用 contenteditable 原生选区 */
+.cm-editor ::selection,
+.cm-editor::selection {
+  background-color: var(--selection);
+}
+/* 当前行背景：文档编辑器不做行高亮（主流文档编辑器同款做法——行背景会割裂
+   段落/引用等块的结构感，光标定位由闪烁插入符承担）。
+   ⚠ CM6 baseTheme 动态注入 .cm-activeLine{background:#cfe}（特异性打平恒后注入胜），
+   须 !important 稳压；仅清背景色，保留引用竖线的背景渐变；
+   cm-activeLine 类本身保留——行首块类型 gutter 图标依赖它显现 */
+.cm-editor .cm-activeLine,
+.cm-editor .cm-line.cm-activeLine {
+  background-color: transparent !important;
+}
+/* 行号/折叠等原生 gutter 仍然隐藏；minimap 也带 .cm-gutters 类，需放行 */
+.cm-gutters:not(.cm-minimap-gutter) {
+  display: none;
+}
+/* minimap 不要背景和边框，直接融入编辑器 */
+.cm-editor .cm-minimap-gutter {
+  background: transparent !important;
+  border: 0 !important;
+  /* minimap 默认 sticky 贴右缘，会盖住保留的原生滚动条；
+     整体左移留出滚动条宽度，避免两者重叠 */
+  right: 1px !important;
+}
+/* 视窗框固定为绝对值：扩展按“屏幕上的文档行数”算高度，软换行下会忽高忽低。
+   !important 压过扩展写入的内联 height；变量由 src/editor/minimap.ts 设置，
+   120px 只是它缺席时的兜底。max-height 保证窗口极矮时框不超出轨道 */
+.cm-editor .cm-minimap-overlay {
+  height: var(--mdcraft-minimap-overlay-height, 120px) !important;
+  max-height: 100%;
+}
+.cm-searchMatch {
+  background: #ffd33d44;
+  outline: 1px solid var(--border);
+}
+
+/* 目录树定位闪烁（面包屑「定位」按钮触发）：两次衰减脉冲，1.8s 结束 */
+@keyframes tree-locate-pulse {
+  0% { background: var(--accent-soft); box-shadow: inset 0 0 0 1px var(--accent); }
+  45% { background: var(--accent-soft); box-shadow: inset 0 0 0 1px var(--accent); }
+  70%, 100% { background: transparent; box-shadow: none; }
+}
+.tree-locate-flash {
+  animation: tree-locate-pulse 1.8s ease-out;
+}
+.cm-searchMatch-selected {
+  background: #ffd33d88;
+}
+
+/* ---------- 文内查找面板（自定义：置顶单行 + 可折叠替换区） ---------- */
+/* CM6 baseTheme 会给 .cm-panels 铺底色与下边框，用更高特异性覆盖 */
+.cm-editor .cm-panels.cm-panels-top {
+  background: transparent;
+  border-bottom: none;
+  color: var(--fg);
+}
+.md-search {
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-soft);
+  font-size: 12px;
+  animation: md-panel-in var(--dur-2) var(--ease-smooth);
+}
+@keyframes md-panel-in {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.md-search__row {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 6px;
+}
+.md-search__row + .md-search__row {
+  margin-top: 6px;
+}
+/* hidden 属性需显式声明：作者样式里的 display:flex 会盖掉 UA 的 [hidden] */
+.md-search__row[hidden] {
+  display: none;
+}
+.md-search__input {
+  min-width: 0;
+  flex: 1 1 auto;
+  padding: 3px 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--fg);
+  font-size: 12.5px;
+  outline: none;
+}
+.md-search__input:focus {
+  border-color: var(--accent);
+}
+.md-search__input::placeholder {
+  color: var(--fg-faint);
+}
+.md-search__count {
+  flex: 0 0 auto;
+  min-width: 40px;
+  color: var(--fg-faint);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.md-search__count--warn {
+  color: var(--danger);
+}
+.md-search__sep {
+  flex: 0 0 auto;
+  width: 1px;
+  height: 14px;
+  background: var(--border);
+}
+.md-search__btn {
+  flex: 0 0 auto;
+  min-width: 24px;
+  padding: 3px 7px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--fg-soft);
+  font-size: 12px;
+  line-height: 1.3;
+  cursor: pointer;
+}
+.md-search__btn:hover {
+  background: var(--bg-hover);
+  color: var(--fg);
+}
+.md-search__toggle[aria-pressed="true"] {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+.cm-tooltip {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+
+/* ---------- Live Preview 核心机制 ---------- */
+
+/* 弱化标记：``` 与引用符等 */
+.md-fade {
+  color: var(--syn-mark);
+  font-size: 0.85em;
+}
+
+/* ---------- 行内元素渲染 ---------- */
+.md-bold {
+  font-weight: 700;
+  color: var(--bold-color, #000000);
+}
+.md-italic {
+  font-style: italic;
+}
+.md-strike {
+  text-decoration: line-through;
+  color: var(--fg-faint);
+}
+.md-code {
+  background: var(--inline-code-bg);
+  color: var(--inline-code-color);
+  border: 1px solid var(--inline-code-border);
+  border-radius: 4px;
+  padding: 1px 5px;
+  font-family: var(--mono-font);
+  font-size: 0.88em;
+}
+.md-link {
+  color: var(--link-color);
+  text-decoration: underline;
+  text-decoration-color: color-mix(in srgb, var(--link-color) 40%, transparent);
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+.md-link:hover {
+  text-decoration-color: var(--link-color);
+}
+.md-tex {
+  font-family: var(--mono-font);
+  font-size: 0.92em;
+  /* 编辑态源码：浅灰底浮出即可（扁平极简语言） */
+  background: var(--bg-soft);
+  color: var(--syn-str);
+  border-radius: 4px;
+  padding: 1px 4px;
+}
+.md-listmark {
+  color: var(--syn-mark);
+}
+/* 无序列表圆点：真 bullet 字符（与正文同基线，自适应字号） */
+.md-bullet {
+  color: var(--fg-soft);
+  margin-right: 0.4em;
+}
+
+/* 列表视觉层级（渲染态）：行首缩进空格已隐藏，层级以行级 padding 递进——
+   步长 2em/级（与主流编辑器同尺度，em 随字号自适应）。
+   基线 6px = CM6 baseTheme 动态注入的 .cm-line padding-left（动态注入恒晚于此文件，
+   特异性打平时后注入者胜，故用 calc 基线值对齐，保证各层级步长严格 2em）；
+   7 级以上钳制 12em，防超深嵌套行宽失控。
+   光标所在项显源码：装饰不挂 → 空格与标记还原显示 */
+.cm-editor {
+  --md-list-base: 6px;
+}
+.cm-editor .cm-line.md-list-line {
+  text-indent: -1.4em;
+}
+.cm-editor .cm-line.md-list-line[data-depth="1"] { padding-left: calc(var(--md-list-base) + 1.4em) !important; }
+.cm-editor .cm-line.md-list-line[data-depth="2"] { padding-left: calc(var(--md-list-base) + 3.4em) !important; }
+.cm-editor .cm-line.md-list-line[data-depth="3"] { padding-left: calc(var(--md-list-base) + 5.4em) !important; }
+.cm-editor .cm-line.md-list-line[data-depth="4"] { padding-left: calc(var(--md-list-base) + 7.4em) !important; }
+.cm-editor .cm-line.md-list-line[data-depth="5"] { padding-left: calc(var(--md-list-base) + 9.4em) !important; }
+.cm-editor .cm-line.md-list-line[data-depth="6"] { padding-left: calc(var(--md-list-base) + 11.4em) !important; }
+.cm-editor .cm-line.md-list-line[data-depth="7"],
+.cm-editor .cm-line.md-list-line[data-depth="8"],
+.cm-editor .cm-line.md-list-line[data-depth="9"],
+.cm-editor .cm-line.md-list-line[data-depth="10"] { padding-left: calc(var(--md-list-base) + 13.4em) !important; }
+
+/* 高亮 ==text==：accent 派生底色，无需逐主题适配 */
+.md-highlight {
+  background: color-mix(in srgb, var(--accent) 26%, transparent);
+  border-radius: 3px;
+  padding: 0.05em 0.2em;
+}
+
+/* 上标 / 下标 / 下划线 */
+.md-sub {
+  vertical-align: sub;
+  font-size: 0.78em;
+}
+.md-sup {
+  vertical-align: super;
+  font-size: 0.78em;
+}
+.md-underline {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+/* ---------- 斜杠快速插入面板（思源 protyle-hint 视觉规格） ----------
+   容器: 圆角12px / 阴影 0 8px 24px .2 / 边框1px / 上下内边距 8px / 最小宽 320px
+   列表项: 行高28px / 外边距 1px 8px / 圆角6px / 图标16px / 右侧meta 12px灰
+   选择器带 .cm-editor + .cm-tooltip 双前缀：CM6 baseTheme 是动态注入 <style>，
+   特异性打平时后注入者胜，必须稳压一头 */
+.cm-editor .cm-tooltip.cm-tooltip-autocomplete {
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  box-shadow: 0 8px 24px rgb(0 0 0 / 20%);
+  padding: 8px 0;
+  min-width: 320px;
+  max-width: 50vw;
+  font-family: var(--editor-font);
+  font-size: 14px;
+  color: var(--fg);
+  transform-origin: top left;
+  animation: ui-pop-in var(--dur-1) var(--ease-smooth);
+}
+.cm-editor .cm-tooltip.cm-tooltip-autocomplete > ul {
+  max-height: 402px; /* 思源同款固定高度（不受 40vh 视口压缩） */
+  font-family: inherit;
+  max-width: none;
+  min-width: 320px;
+  white-space: nowrap;
+}
+.cm-editor .cm-tooltip.cm-tooltip-autocomplete ul li {
+  display: flex;
+  align-items: center;
+  line-height: 28px;
+  min-height: 28px;
+  margin: 1px 8px;
+  padding: 0 4px;
+  border-radius: 6px;
+  cursor: pointer;
+  color: var(--fg);
+  overflow: visible;
+  text-overflow: clip;
+}
+/* 图标（--si 由 styles/slash-icons.css 按 entryKey 注入，mask+currentColor 主题自适应） */
+.cm-editor .cm-tooltip.cm-tooltip-autocomplete ul li.md-si::before {
+  content: "";
+  width: 16px;
+  height: 16px;
+  margin: 0 6px 0 2px;
+  flex-shrink: 0;
+  background-color: var(--fg-soft);
+  -webkit-mask: var(--si) center / contain no-repeat;
+  mask: var(--si) center / contain no-repeat;
+}
+.cm-editor .cm-tooltip.cm-tooltip-autocomplete .cm-completionLabel {
+  flex: 1 1 auto;
+  font-size: 14px;
+  color: inherit;
+  white-space: pre;
+}
+.cm-editor .cm-tooltip.cm-tooltip-autocomplete .cm-completionDetail {
+  font-size: 12px;
+  margin-left: 8px;
+  flex-shrink: 0;
+  color: var(--fg-faint);
+}
+/* 思源同款：选中态仅换浅灰背景，文字不变色 */
+.cm-editor .cm-tooltip.cm-tooltip-autocomplete ul li[aria-selected] {
+  background: var(--bg-hover);
+}
+.cm-editor .cm-tooltip.cm-tooltip-autocomplete ul li[aria-selected] .cm-completionLabel {
+  color: var(--fg);
+}
+/* 思源式分组分隔线（b3-menu__separator 同款：1px / 主题边框色 / margin 4px 0，无文字）
+   CM6 在 section 变化处自动插入 completion-section，这里把它渲染成分割线 */
+.cm-editor .cm-tooltip.cm-tooltip-autocomplete ul > completion-section {
+  display: block !important;
+  height: 1px !important;
+  margin: 6px 0 !important;
+  padding: 0 !important;
+  border: none !important;
+  opacity: 1;
+  font-size: 0 !important;
+  line-height: 0 !important;
+  color: transparent;
+  overflow: hidden;
+  background: var(--border) !important;
+  user-select: none;
+}
+
+/* ============================================================
+   公式块编辑浮层（思源式）：点击公式块后弹出（block widget，公式块下方）
+   · 原地渲染保持，源码在浮层编辑，输入实时同步 → 公式原地重渲染
+   · 点击外部 / Esc 关闭（光标移出块范围即消失）
+   · 形态：圆角 + 软投影、无外描边；标题栏浅灰「公式块」+ 等宽输入区（带行号）
+   ⚠ 垂直间距由外层 .md-formula-outer 的 padding 承担（块级 widget 禁 margin：
+     margin 不入 CM6 heightMap，行位漂移导致下方点击错行）
+   ============================================================ */
+.md-formula-outer {
+  padding: 0.4em 0;
+}
+.md-formula-editor {
+  border-radius: 8px;
+  background: var(--bg);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.14);
+  overflow: hidden;
+}
+.md-formula-head {
+  padding: 5px 14px;
+  background: var(--bg-soft);
+  border-bottom: 1px solid var(--border);
+  font-size: 12px;
+  color: var(--fg-soft);
+  user-select: none;
+}
+.md-formula-body {
+  display: flex;
+}
+.md-formula-gutter {
+  flex: none;
+  min-width: 2.4em;
+  padding: 10px 0 10px 12px;
+  font-family: var(--mono-font);
+  font-size: 0.86em;
+  line-height: 1.65;
+  text-align: right;
+  color: var(--fg-faint);
+  user-select: none;
+  white-space: pre;
+  overflow: hidden;
+}
+.md-formula-input {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  outline: none;
+  resize: none;
+  padding: 10px 14px 10px 8px;
+  font-family: var(--mono-font);
+  font-size: 0.86em;
+  line-height: 1.65;
+  color: var(--syn-str);
+  background: var(--bg);
+  overflow: hidden;
+}
+
+/* 公式渲染：间距一律 padding（margin 会脱离 CM6 行高度测量 → heightMap 漂移） */
+.md-math {
+  color: var(--fg-strong);
+}
+.md-math-display {
+  display: block;
+  text-align: center;
+  padding: calc(2px + 0.4em) 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+.md-math-error {
+  color: var(--danger);
+  font-family: var(--mono-font);
+}
+.md-math-block {
+  text-align: center;
+  padding: calc(6px + 0.5em) 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+/* 图片渲染 */
+.md-image-wrap {
+  display: block;
+  text-align: center;
+  padding: 6px 0;
+}
+.md-image-wrap img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 8px;
+  box-shadow: 0 1px 4px rgb(0 0 0 / 8%);
+}
+.md-image-broken {
+  color: var(--fg-faint);
+  font-size: 0.9em;
+}
+
+/* 分割线渲染 */
+.md-hr {
+  display: block;
+  width: 100%;
+  padding: 1.1em 0;
+  margin: 0;
+}
+.md-hr-line {
+  display: block;
+  width: 100%;
+  border-top: 2px solid var(--border);
+}
+
+/* 任务复选框 */
+.md-task-checkbox {
+  appearance: none;
+  width: 15px;
+  height: 15px;
+  border: 1.5px solid var(--fg-faint);
+  border-radius: 4px;
+  margin: 0 0.45em 0 0.05em;
+  vertical-align: -2px;
+  cursor: pointer;
+  background: var(--bg);
+  position: relative;
+  transition: all 0.12s ease;
+}
+.md-task-checkbox:hover {
+  border-color: var(--accent);
+}
+.md-task-checkbox:checked {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+.md-task-checkbox:checked::after {
+  content: "";
+  position: absolute;
+  left: 4.5px;
+  top: 1.2px;
+  width: 4px;
+  height: 8px;
+  border: solid #fff;
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+
+/* ---------- 块级元素渲染 ---------- */
+
+/* 标题（字号/颜色变量化，层级仅靠字号/字重区分，无横线） */
+.md-line-h1 {
+  font-size: var(--h1-fs);
+  font-weight: 700;
+  color: var(--heading-color);
+  padding: 0.55em 0 0.28em;
+}
+.md-line-h2 {
+  font-size: var(--h2-fs);
+  font-weight: 700;
+  color: var(--heading-color);
+  padding: 0.5em 0 0.22em;
+}
+.md-line-h3 {
+  font-size: var(--h3-fs);
+  font-weight: 650;
+  color: var(--heading-color);
+  padding: 0.42em 0 0.18em;
+}
+.md-line-h4 {
+  font-size: var(--h4-fs);
+  font-weight: 650;
+  padding: 0.38em 0 0.14em;
+}
+.md-line-h5 {
+  font-size: 1em;
+  font-weight: 650;
+  padding: 0.34em 0 0.12em;
+}
+.md-line-h6 {
+  font-size: 1em;
+  font-weight: 650;
+  color: var(--fg-soft);
+  padding: 0.32em 0 0.1em;
+}
+
+/* 引用块：无背景色，仅左侧竖线（data-depth 表达嵌套层级）。
+   嵌套层级 = 每层一根 3px 竖线 + 内容逐级缩进 1.1em/级：
+   border-left 只能画单根且固定行首，多层级改用 background 渐变竖线（视觉等价）——
+   depth N 的竖线位于 (N-1)*1.1em（即每层引用自身的左缘），内容缩进 N*1.1em */
+.md-line-quote {
+  --quote-line: linear-gradient(to right, var(--quote-border), var(--quote-border));
+  color: var(--quote-color);
+  padding-left: 1.1em !important;
+  background-image: var(--quote-line);
+  background-size: 3px 100%;
+  background-position: 0 0;
+  background-repeat: no-repeat;
+}
+.md-line-quote[data-depth="2"] {
+  padding-left: 2.2em !important;
+  background-image: var(--quote-line), var(--quote-line);
+  background-size: 3px 100%, 3px 100%;
+  background-position: 0 0, 1.1em 0;
+}
+.md-line-quote[data-depth="3"] {
+  padding-left: 3.3em !important;
+  background-image: var(--quote-line), var(--quote-line), var(--quote-line);
+  background-size: 3px 100%, 3px 100%, 3px 100%;
+  background-position: 0 0, 1.1em 0, 2.2em 0;
+}
+.md-line-quote[data-depth="4"] {
+  padding-left: 4.4em !important;
+  background-image: var(--quote-line), var(--quote-line), var(--quote-line), var(--quote-line);
+  background-size: 3px 100%, 3px 100%, 3px 100%, 3px 100%;
+  background-position: 0 0, 1.1em 0, 2.2em 0, 3.3em 0;
+}
+.md-line-quote[data-depth="5"] {
+  padding-left: 5.5em !important;
+  background-image: var(--quote-line), var(--quote-line), var(--quote-line), var(--quote-line), var(--quote-line);
+  background-size: 3px 100%, 3px 100%, 3px 100%, 3px 100%, 3px 100%;
+  background-position: 0 0, 1.1em 0, 2.2em 0, 3.3em 0, 4.4em 0;
+}
+
+/* 代码块：连续行拼接出背景（主题变量控制底色/边框/圆角）
+   渲染态围栏 ``` 与语言名已隐藏：首尾变薄背景条，语言名右上角小标签 */
+.md-line-fence {
+  font-family: var(--mono-font);
+  font-size: 0.88em;
+  background: var(--code-bg);
+  padding-left: 14px !important;
+  padding-right: 14px !important;
+  line-height: 1.55 !important;
+  border-left: 1px solid var(--code-border);
+  border-right: 1px solid var(--code-border);
+}
+/* 代码块顶条 = 语言条（围栏已隐藏）：语言 tag 为可交互实体按钮（左上角） */
+.md-fence-first {
+  border-radius: var(--code-radius) var(--code-radius) 0 0;
+  border-top: 1px solid var(--code-border);
+  padding-top: 0 !important;
+  line-height: 30px !important;
+  min-height: 30px;
+}
+/* ============================================================
+   块类型 gutter（思源式）：hover 行 / 光标行左侧垂直居中显示块类型图标
+   复用斜杠面板的 lucide mask 图标体系；平时隐藏，交互行才浮现
+   ============================================================ */
+.cm-editor .cm-line.md-gutter::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 4px;
+  transform: translate(-100%, -50%) translateX(-6px);
+  width: 15px;
+  height: 15px;
+  background-color: var(--fg-faint);
+  -webkit-mask: var(--md-gutter-icon) center / contain no-repeat;
+  mask: var(--md-gutter-icon) center / contain no-repeat;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.1s ease;
+  z-index: 6;
+}
+/* 类型 → 图标（复用 slash-icons.css 的 --si 定义值） */
+.cm-editor .cm-line.md-gutter[data-btype="h1"] { --md-gutter-icon: var(--si-h1); }
+.cm-editor .cm-line.md-gutter[data-btype="h2"] { --md-gutter-icon: var(--si-h2); }
+.cm-editor .cm-line.md-gutter[data-btype="h3"] { --md-gutter-icon: var(--si-h3); }
+.cm-editor .cm-line.md-gutter[data-btype="h4"] { --md-gutter-icon: var(--si-h4); }
+.cm-editor .cm-line.md-gutter[data-btype="h5"] { --md-gutter-icon: var(--si-h5); }
+.cm-editor .cm-line.md-gutter[data-btype="h6"] { --md-gutter-icon: var(--si-h6); }
+.cm-editor .cm-line.md-gutter[data-btype="list"] { --md-gutter-icon: var(--si-list); }
+.cm-editor .cm-line.md-gutter[data-btype="quote"] { --md-gutter-icon: var(--si-quote); }
+.cm-editor .cm-line.md-gutter[data-btype="code"] { --md-gutter-icon: var(--si-code); }
+.cm-editor .cm-line.md-gutter[data-btype="html"] { --md-gutter-icon: var(--si-code); }
+.cm-editor .cm-line.md-gutter[data-btype="math"] { --md-gutter-icon: var(--si-mathBlock); }
+.cm-editor .cm-line.md-gutter[data-btype="table"] { --md-gutter-icon: var(--si-table); }
+.cm-editor .cm-line.md-gutter[data-btype="front"] { --md-gutter-icon: var(--si-frontmatter); }
+.cm-editor .cm-line.md-gutter[data-btype="para"] { --md-gutter-icon: var(--si-toc); }
+.cm-editor .cm-line.md-gutter:hover::before,
+.cm-editor .cm-line.md-gutter.cm-activeLine::before {
+  opacity: 1;
+}
+/* 块级 widget（渲染态表格/块公式）的 gutter 图标：hover widget 即显示 */
+.md-gutter-hover { position: relative; }
+.md-gutter-hover::before {
+  content: "";
+  position: absolute;
+  top: 6px; /* 块首行视觉对齐 */
+  left: 4px;
+  transform: translateX(-100%) translateX(-6px);
+  width: 15px;
+  height: 15px;
+  background-color: var(--fg-faint);
+  -webkit-mask: var(--md-gutter-icon) center / contain no-repeat;
+  mask: var(--md-gutter-icon) center / contain no-repeat;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.1s ease;
+  z-index: 6;
+}
+.md-gutter-hover[data-btype="table"] { --md-gutter-icon: var(--si-table); }
+.md-gutter-hover[data-btype="math"] { --md-gutter-icon: var(--si-mathBlock); }
+.md-gutter-hover[data-btype="front"] { --md-gutter-icon: var(--si-frontmatter); }
+.md-gutter-hover[data-btype="html"] { --md-gutter-icon: var(--si-code); }
+.md-gutter-hover[data-btype="code"] { --md-gutter-icon: var(--si-code); }
+.md-gutter-hover:hover::before {
+  opacity: 1;
+}
+
+/* 语言 tag（思源式）：平时纯文字弱提示（无边框无背景），与代码内容左对齐；
+   hover 浮现浅底胶囊（对称内边距，视觉不位移），点击弹语言选择面板 */
+.md-lang-tag {
+  font-family: var(--mono-font);
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--fg-faint);
+  background: transparent;
+  border: none;
+  padding: 2px 0; /* 平时零水平内边距：与代码左缘对齐，hover 加对称 padding 会右移 8px */
+  margin-left: 0;
+  border-radius: 4px;
+  cursor: pointer;
+  vertical-align: middle;
+  transition: color 0.12s ease, background 0.12s ease;
+}
+.md-lang-tag:hover,
+.md-lang-tag:focus-visible {
+  color: var(--fg-soft);
+  background: var(--bg-soft);
+  padding: 2px 8px;
+  margin-left: -8px; /* 胶囊对称内边距的补偿：文字位置保持不动 */
+  outline: none;
+}
+.md-fence-last {
+  border-radius: 0 0 var(--code-radius) var(--code-radius);
+  border-bottom: 1px solid var(--code-border);
+  padding-bottom: 0 !important;
+  line-height: 12px !important;
+  min-height: 12px;
+}
+
+/* ============================================================
+   代码块渲染件（blocks.ts 将围栏代码块整块替换为只读 widget）
+   内嵌横向滚动条：单行超长不换行，由 .md-code-scroll 横向滚动查看；
+   垂直间距由外层 .md-code-outer 的 padding 承担（块级 widget 禁 margin，
+   margin 不入 CM6 heightMap，行位漂移导致下方点击错行）
+   ============================================================ */
+.md-code-outer {
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  padding: 0.4em 0;
+}
+.md-code-block {
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  border-radius: var(--code-radius);
+  border: 1px solid var(--code-border);
+  background: var(--code-bg);
+  overflow: hidden;
+}
+.md-code-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 4px 12px;
+  border: 0;
+  font-family: var(--mono-font);
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  text-align: left;
+  color: var(--fg-faint);
+  background: var(--bg-soft);
+  border-bottom: 1px solid var(--code-border);
+  cursor: pointer;
+  user-select: none;
+}
+.md-code-head::after {
+  content: "▾";
+  margin-left: 8px;
+  font-size: 9px;
+  opacity: 0.55;
+}
+.md-code-head:hover {
+  color: var(--fg-soft);
+  background: var(--bg-hover);
+}
+.md-code-head:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+/* 代码块语言下拉：fixed 挂 body，避免被 block widget 的 overflow 裁切 */
+.md-code-lang-menu {
+  position: fixed;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 6px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+  color: var(--fg);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
+  overflow: hidden;
+}
+.md-code-lang-search {
+  flex: 0 0 auto;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 5px 8px;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  outline: none;
+  background: var(--bg-soft);
+  color: var(--fg);
+  font-size: 12px;
+}
+.md-code-lang-search:focus {
+  border-color: var(--accent);
+}
+.md-code-lang-list {
+  display: flex;
+  flex: 1 1 auto;
+  min-height: 0;
+  flex-direction: column;
+  gap: 1px;
+  overflow-y: auto;
+}
+.md-code-lang-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  padding: 5px 8px;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--fg);
+  font-family: var(--mono-font);
+  font-size: 12px;
+  text-align: left;
+  cursor: pointer;
+}
+.md-code-lang-item:hover,
+.md-code-lang-item.is-current {
+  background: var(--bg-hover);
+  color: var(--accent);
+}
+.md-code-lang-item.is-custom {
+  color: var(--accent);
+}
+.md-code-lang-item.is-custom span:first-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.md-code-lang-detail {
+  overflow: hidden;
+  margin-left: auto;
+  color: var(--fg-faint);
+  font-family: var(--editor-font);
+  font-size: 10.5px;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.md-code-lang-empty {
+  padding: 10px;
+  color: var(--fg-faint);
+  font-size: 12px;
+  text-align: center;
+}
+.md-code-scroll {
+  overflow-x: hidden;
+  overflow-y: hidden;
+}
+/* 块内 contenteditable 编辑区（思源式）：等宽、不换行、内嵌横向滚动，
+   光标为文本 I-beam，可精确点击定位到任意字符。
+   width/max-width 必须锁定为 100%：否则超长代码行会把整个编辑器撑宽，
+   而不是在代码块内部横向滚动 */
+.md-code-edit {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  min-height: 1.55em;
+  padding: 10px 14px;
+  font-family: var(--mono-font);
+  font-size: 0.88em;
+  line-height: 1.55;
+  color: var(--syn-str);
+  white-space: pre;
+  tab-size: 4;
+  overflow-x: auto;
+  overflow-y: hidden;
+  outline: none;
+  cursor: text;
+  word-break: normal;
+  overflow-wrap: normal;
+  user-select: text;
+}
+/* 每行单独成块：width:max-content 让超长行撑开自身滚动宽度，
+   但不会反过来撑宽编辑器；min-width:100% 让空行也占满整行 */
+.md-code-line {
+  width: max-content;
+  min-width: 100%;
+  min-height: 1.55em;
+  white-space: pre;
+}
+
+/* frontmatter：属性框形式 */
+.md-line-front {
+  background: var(--bg-soft);
+  color: var(--fg-soft);
+  font-family: var(--mono-font);
+  font-size: 0.82em;
+  padding-left: 18px !important;
+}
+.md-line-front:first-child {
+  border-radius: 10px 10px 0 0;
+  padding-top: 18px !important;
+}
+/* 编辑态末行收口（首行圆角在 :first-child，对称闭合属性框） */
+.md-line-front.md-front-last {
+  border-radius: 0 0 10px 10px;
+  padding-bottom: 18px !important;
+}
+
+/* 段落间距（padding 而非 margin：CM6 行测量限制） */
+.md-line-para {
+  padding-top: 0.38em;
+}
+
+/* GFM 表格渲染件（块级 widget，可交互）
+   左对齐（上下间距 .8em 0），宽度随内容；
+   position:relative 供编辑工具栏悬浮（absolute 不占布局，无 heightMap 漂移） */
+.md-table-wrapper {
+  padding: 0.8em 0;
+  position: relative;
+}
+/* 表格工具栏（思源式）：单元格聚焦时浮现于该单元格上方（left/top 由 JS 按活动格摆位）；
+   半透明毛玻璃 + 入场动效，高级轻浮动卡 */
+.md-table-toolbar {
+  display: none;
+  position: absolute;
+  z-index: 20;
+  transform: translateY(-100%);
+  gap: 2px;
+  padding: 3px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: color-mix(in srgb, var(--bg) 86%, transparent);
+  backdrop-filter: blur(10px);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.12), 0 1px 2px rgba(0, 0, 0, 0.08);
+  user-select: none;
+}
+.md-table-wrapper.md-table-editing .md-table-toolbar {
+  display: flex;
+  animation: md-table-bar-in 0.13s ease-out;
+}
+@keyframes md-table-bar-in {
+  from {
+    opacity: 0;
+    transform: translateY(-100%) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(-100%);
+  }
+}
+.md-table-tool {
+  border: none;
+  background: transparent;
+  color: var(--fg-soft);
+  font-size: 12px;
+  line-height: 1;
+  padding: 5px 7px;
+  border-radius: 6px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.1s ease, color 0.1s ease;
+}
+.md-table-tool:hover {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+.md-table-tool:active {
+  scale: 0.94;
+}
+/* 对齐键的当前态：活动列正在使用的对齐方式高亮 */
+.md-table-tool-on {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+.md-table-tool-gap {
+  margin-left: 6px;
+  /* 分组间隔以细缝线暗示 */
+  box-shadow: -3px 0 0 -2.15px var(--border);
+}
+/* 行列拖拽抓手（Obsidian 式重排）：悬停浮现，点阵外观可拖 */
+.md-table-handle {
+  display: none;
+  position: absolute;
+  z-index: 30;
+  width: 14px;
+  height: 18px;
+  border-radius: 4px;
+  cursor: grab;
+  opacity: 0.55;
+  background-color: var(--bg);
+  background-image: radial-gradient(var(--fg-soft) 1.1px, transparent 1.4px);
+  background-size: 4.5px 5px;
+  background-position: center;
+  user-select: none;
+}
+.md-table-handle:hover {
+  opacity: 1;
+  background-color: var(--accent-soft);
+}
+/* 拖拽插入指示线（横=行边界，竖=列边界，几何由 JS 摆位） */
+.md-table-reorder-guide {
+  position: absolute;
+  z-index: 29;
+  background: var(--accent);
+  border-radius: 1px;
+  pointer-events: none;
+}
+/* 拖拽态：抓手光标 + 禁文本随拖选中 */
+.md-table-dragging,
+.md-table-dragging * {
+  cursor: grabbing !important;
+  user-select: none;
+}
+/* 列宽拖拽（思源式）：右缘热区光标；固定布局下解除内容宽钳制 */
+.md-table .md-col-resizer {
+  cursor: col-resize !important;
+}
+.md-table.md-table-fixed th,
+.md-table.md-table-fixed td {
+  max-width: none;
+}
+.md-table-resizing,
+.md-table-resizing * {
+  cursor: col-resize !important;
+  user-select: none;
+}
+.md-table th,
+.md-table td {
+  border: 1px solid var(--table-border);
+  padding: 6px 13px;
+  max-width: 420px;
+  cursor: text;
+  /* 渲染态保留单元格内空白 / 换行（行内 Markdown 渲染后仍与源码一致） */
+  white-space: pre-wrap;
+}
+/* 表格内行内图片：不撑破单元格，按文字高度对齐 */
+.md-table .md-table-img {
+  max-width: 100%;
+  max-height: 2.4em;
+  vertical-align: middle;
+  border-radius: 4px;
+}
+.md-table th {
+  background: var(--table-head-bg);
+  font-weight: 600;
+  text-align: left;
+}
+.md-table tr:nth-child(2n) td {
+  background: var(--table-zebra);
+}
+.md-table td:empty::after {
+  content: " ";
+}
+/* 单元格聚焦：Excel 式选框（覆盖 outline 全边） */
+.md-table th[contenteditable]:focus,
+.md-table td[contenteditable]:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+  background: var(--accent-soft);
+}
+
+/* Frontmatter 属性卡（渲染态，Obsidian 式）：key/value 两列表，
+ *  --- 分隔行不显示；点击进入块内自动显源码（livepreview 的 L_FRONT 行样式接手）
+ *  ⚠ 垂直间距由外层 .md-frontmatter-outer 的 padding 承担（块级 widget 禁 margin） */
+.md-frontmatter-outer {
+  padding: 0.35em 0;
+}
+.md-frontmatter {
+  display: table;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg-soft);
+  font-size: 0.85em;
+  line-height: 1.5;
+  min-width: 200px;
+}
+.md-fm-row {
+  display: table-row;
+}
+.md-fm-key,
+.md-fm-value {
+  display: table-cell;
+  padding: 5px 14px;
+  white-space: pre-wrap;
+}
+.md-fm-key {
+  font-family: var(--mono-font);
+  color: var(--fg-faint);
+  white-space: pre;
+}
+.md-fm-value {
+  color: var(--fg);
+}
+.md-fm-row + .md-fm-row .md-fm-key,
+.md-fm-row + .md-fm-row .md-fm-value {
+  border-top: 1px solid var(--border);
+}
+/* 数组值（tags: [a, b]）→ tag 徽章组：浅底胶囊，与斜杠面板/语言 tag 同语言 */
+.md-fm-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  align-items: center;
+}
+.md-fm-tag {
+  background: var(--bg-hover);
+  border-radius: 4px;
+  padding: 1px 8px;
+  color: var(--fg-soft);
+  white-space: nowrap;
+}
+.md-gutter-hover[data-btype="front"] {
+  --md-gutter-icon: var(--si-frontmatter);
+}
+
+/* 多行块公式（源码态呈现） */
+.md-line-math {
+  font-family: var(--mono-font);
+  color: var(--syn-str);
+  text-align: center;
+}
+
+/* 行内代码在标题内继承缩小 */
+.md-line-h1 .md-code,
+.md-line-h2 .md-code,
+.md-line-h3 .md-code {
+  font-size: 0.75em;
+}
+
+/* ============================================================
+   原生 HTML 块（GitHub 徽章行 / <p align=center> / 内嵌表格等）
+   blocks.ts 整块替换为净化 DOM；点击进入块内显源码。
+   ⚠ 垂直间距由外层 .md-html-block-outer 的 padding 承担（块级 widget 禁 margin）
+   ============================================================ */
+.md-html-block-outer {
+  padding: 2px 0;
+}
+.md-html-block {
+  user-select: text;
+  line-height: 1.6;
+  /* CM 的 .cm-content/.cm-line 为 pre-wrap，块 widget 会继承 → 源码里的 CRLF
+     被渲染成真实换行、行内元素灾难换行。HTML 块语义应折叠空白（GitHub 同款） */
+  white-space: normal;
+}
+.md-html-block img {
+  display: inline-block;
+  max-width: 100%;
+  vertical-align: middle;
+}
+.md-html-block svg {
+  display: inline-block;
+  vertical-align: middle;
+}
+.md-html-block a {
+  color: var(--accent);
+  text-decoration: none;
+}
+.md-html-block a:hover {
+  text-decoration: underline;
+}
+.md-html-block p {
+  margin: 0 0 0.6em;
+}
+.md-html-block p:last-child,
+.md-html-block div:last-child {
+  margin-bottom: 0;
+}
+.md-html-block h1, .md-html-block h2, .md-html-block h3,
+.md-html-block h4, .md-html-block h5, .md-html-block h6 {
+  font-size: 1em;
+  font-weight: 600;
+  margin: 0.5em 0 0.3em;
+}
+.md-html-block ul, .md-html-block ol, .md-html-block dl {
+  margin: 0.4em 0;
+  padding-left: 1.6em;
+}
+.md-html-block ul { list-style: disc; }
+.md-html-block ol { list-style: decimal; }
+.md-html-block ul ul { list-style: circle; }
+.md-html-block code {
+  font-family: var(--mono-font);
+  font-size: 0.9em;
+  background: var(--bg-soft);
+  border-radius: 4px;
+  padding: 0.1em 0.35em;
+}
+.md-html-block pre {
+  background: var(--bg-soft);
+  border-radius: 8px;
+  padding: 8px 12px;
+  margin: 0.4em 0;
+  overflow-x: auto;
+  white-space: pre; /* HTML 内嵌代码块保持预排版 */
+}
+.md-html-block pre code {
+  background: none;
+  padding: 0;
+  font-size: 0.92em;
+}
+.md-html-block kbd {
+  font-family: var(--mono-font);
+  font-size: 0.85em;
+  color: var(--fg-soft);
+  background: var(--bg-soft);
+  border: 1px solid var(--border);
+  border-bottom-width: 2px;
+  border-radius: 4px;
+  padding: 0.1em 0.4em;
+}
+.md-html-block blockquote {
+  margin: 0.4em 0;
+  padding: 0.1em 0 0.1em 12px;
+  border-left: 3px solid var(--border);
+  color: var(--fg-soft);
+}
+.md-html-block table {
+  border-collapse: collapse;
+  margin: 0.5em 0;
+}
+.md-html-block th, .md-html-block td {
+  border: 1px solid var(--border);
+  padding: 5px 12px;
+}
+.md-html-block th {
+  background: var(--bg-soft);
+  font-weight: 600;
+}
+.md-html-block details {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 4px 12px;
+  margin: 0.4em 0;
+}
+.md-html-block summary {
+  cursor: pointer;
+  color: var(--fg-soft);
+}
+.md-html-block hr {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: 0.8em 0;
+}
+
+/* ---------- 软件更新日志 Markdown 渲染样式 ---------- */
+.changelog-markdown h1,
+.changelog-markdown h2,
+.changelog-markdown h3,
+.changelog-markdown h4 {
+  font-weight: 600;
+  color: var(--fg-strong);
+  margin-top: 12px;
+  margin-bottom: 6px;
+}
+.changelog-markdown h1:first-child,
+.changelog-markdown h2:first-child,
+.changelog-markdown h3:first-child {
+  margin-top: 0;
+}
+.changelog-markdown p {
+  margin-bottom: 6px;
+}
+.changelog-markdown ul,
+.changelog-markdown ol {
+  padding-left: 18px;
+  margin-bottom: 8px;
+}
+.changelog-markdown ul {
+  list-style-type: disc;
+}
+.changelog-markdown ol {
+  list-style-type: decimal;
+}
+.changelog-markdown li {
+  margin-bottom: 3px;
+  line-height: 1.6;
+}
+.changelog-markdown code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.9em;
+  padding: 1.5px 5px;
+  border-radius: 4px;
+  background-color: var(--bg-hover);
+  color: var(--accent);
+}
+.changelog-markdown pre code {
+  display: block;
+  padding: 8px 12px;
+  overflow-x: auto;
+  border-radius: 6px;
+  margin-bottom: 8px;
+}
+.changelog-markdown blockquote {
+  border-left: 3px solid var(--accent);
+  padding-left: 10px;
+  color: var(--fg-faint);
+  margin: 8px 0;
+}
+.changelog-markdown a {
+  color: var(--accent);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+

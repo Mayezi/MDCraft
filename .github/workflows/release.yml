@@ -1,0 +1,125 @@
+name: Release
+
+# 触发条件：
+# 1. 打 tag（须与 tauri.conf.json 的 version 一致）：
+#    更新说明写在 release-notes/v<版本>.md（缺失时回退到 tag 注释）
+#    git tag -a v0.17.1 -m "MDCraft v0.17.1" && git push origin v0.17.1
+# 2. 或在 GitHub Actions 页面手动点击 "Run workflow" 运行
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    permissions:
+      contents: write # 创建 release / 上传安装包需要写权限
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: "windows-latest"
+            args: ""
+          - platform: "macos-latest"
+            args: "--target universal-apple-darwin"
+          - platform: "ubuntu-22.04"
+            args: ""
+
+    runs-on: ${{ matrix.platform }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0 # 完整拉取历史与 tag 注释元数据，确保能读出完整的更新说明
+
+      - name: Install system dependencies (Ubuntu only)
+        if: startsWith(matrix.platform, 'ubuntu')
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev build-essential curl wget file libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          version: 10
+
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          # macOS 构建通用二进制（同时支持 Intel 与 Apple Silicon M 系列）
+          targets: ${{ matrix.platform == 'macos-latest' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
+
+      - name: Cache Rust
+        uses: Swatinem/rust-cache@v2
+        with:
+          # 本仓库是 workspace 根目录在仓库根（不是 Tauri 默认的 src-tauri/），target 也在根目录
+          workspaces: "."
+
+      - name: Extract and verify app version
+        id: get_version
+        shell: bash
+        run: |
+          APP_VERSION=$(node -p "require('./src-tauri/tauri.conf.json').version")
+          echo "version=${APP_VERSION}" >> $GITHUB_OUTPUT
+          if [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
+            TAG_VERSION="${GITHUB_REF_NAME#v}"
+            if [ "$TAG_VERSION" != "$APP_VERSION" ]; then
+              echo "::error::tag ${GITHUB_REF_NAME} 与 tauri.conf.json 版本 ${APP_VERSION} 不一致，用户将收不到更新"
+              exit 1
+            fi
+          fi
+
+      - name: Prepare release notes
+        id: notes
+        shell: bash
+        # 说明优先取 release-notes/v<版本>.md（可 review、可 diff）；
+        # 文件不存在时回退到 tag 注释正文。两者都会作为 Release 正文，
+        # latest.json 的 notes 也来自同一正文。
+        run: |
+          NOTES=""
+          NOTES_FILE="release-notes/v${{ steps.get_version.outputs.version }}.md"
+          if [ -f "$NOTES_FILE" ]; then
+            NOTES=$(cat "$NOTES_FILE")
+          fi
+          if [ -z "$NOTES" ] && [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
+            NOTES=$(git tag -l --format='%(contents:body)' "${GITHUB_REF_NAME}")
+          fi
+          NOTES=$(printf '%s' "$NOTES" | sed -e 's/[[:space:]]*$//')
+          if [ -z "$NOTES" ]; then
+            NOTES="见下方 Assets 下载对应平台安装包。"
+          fi
+          {
+            echo "body<<__RELEASE_NOTES_EOF__"
+            echo "$NOTES"
+            echo "__RELEASE_NOTES_EOF__"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Install frontend dependencies
+        run: pnpm install --no-frozen-lockfile
+
+      - name: Build and publish
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # 签名私钥来自 `npx tauri signer generate`，存为仓库 Secret
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        with:
+          tagName: v${{ steps.get_version.outputs.version }}
+          releaseName: "MDCraft v${{ steps.get_version.outputs.version }}"
+          # 正文取自上一步从 tag 注释读出的更新说明
+          releaseBody: ${{ steps.notes.outputs.body }}
+          releaseDraft: true # 先出草稿，三端全部构建完成后再点 Publish
+          prerelease: false
+          args: ${{ matrix.args }}
+          # Windows 会同时产出 .msi 与 NSIS setup.exe；更新清单优先指向 NSIS
+          updaterJsonPreferNsis: true

@@ -1,0 +1,373 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>MDCraft — Markdown 编辑器</title>
+    <meta name="description" content="所见即所得 Markdown 编辑器，支持双模式、实时预览、公式渲染与多主题切换。" />
+    <meta property="og:title" content="MDCraft — Markdown 编辑器" />
+    <meta property="og:description" content="所见即所得 Markdown 编辑器，支持双模式、实时预览、公式渲染与多主题切换。" />
+    <link rel="icon" type="image/png" href="/app-icon.png" />
+    <script>
+      // 主题在首帧前应用：启动画面和后续界面都不会先闪一下默认主题
+      (function () {
+        try {
+          var raw = localStorage.getItem("mdcraft:theme");
+          var theme =
+            raw === "light" || raw === "github"
+              ? "github"
+              : raw === "dark" || raw === "night"
+                ? "night"
+                : raw === "newsprint" || raw === "pixyll" || raw === "whitey"
+                  ? raw
+                  : window.matchMedia("(prefers-color-scheme: dark)").matches
+                    ? "night"
+                    : "github";
+          document.documentElement.dataset.theme = theme;
+        } catch (e) {
+          document.documentElement.dataset.theme = "github";
+        }
+      })();
+    </script>
+    <style>
+      /* ==========================================================================
+         1. 主题色板矩阵：精准对齐全部 5 套预设主题，彻底消除首帧切页色差
+         ========================================================================== */
+      :root,
+      html[data-theme="github"] {
+        color-scheme: light;
+        --boot-bg: #ffffff;
+        --boot-bg-subtle: #f6f8fa;
+        --boot-fg: #1f2328;
+        --boot-fg-muted: #656d76;
+        --boot-accent: #0969da;
+        --boot-accent-glow: rgba(9, 105, 218, 0.12);
+        --boot-track: rgba(31, 35, 40, 0.08);
+        --boot-card-border: rgba(31, 35, 40, 0.08);
+        --boot-logo-bg: linear-gradient(180deg, #ffffff 0%, #f6f8fa 100%);
+        --boot-logo-shadow:
+          0 1px 2px rgba(31, 35, 40, 0.06),
+          0 8px 24px -4px rgba(31, 35, 40, 0.08),
+          inset 0 1px 0 rgba(255, 255, 255, 0.9);
+        --boot-dot: rgba(31, 35, 40, 0.05);
+        --boot-title-a: #2563eb;
+        --boot-title-b: #4f46e5;
+      }
+
+      html[data-theme="night"] {
+        color-scheme: dark;
+        --boot-bg: #1e2227; /* 比纯 #363b40 更深邃高级，同时与编辑器暗色自然过渡 */
+        --boot-bg-subtle: #252a30;
+        --boot-fg: #e6edf3;
+        --boot-fg-muted: #8b949e;
+        --boot-accent: #4493f8;
+        --boot-accent-glow: rgba(68, 147, 248, 0.16);
+        --boot-track: rgba(240, 246, 252, 0.1);
+        --boot-card-border: rgba(240, 246, 252, 0.1);
+        --boot-logo-bg: linear-gradient(180deg, #2d333b 0%, #22272e 100%);
+        --boot-logo-shadow:
+          0 2px 4px rgba(0, 0, 0, 0.35),
+          0 12px 28px -4px rgba(0, 0, 0, 0.5),
+          inset 0 1px 0 rgba(255, 255, 255, 0.08);
+        --boot-dot: rgba(255, 255, 255, 0.04);
+        --boot-title-a: #60a5fa;
+        --boot-title-b: #818cf8;
+      }
+
+      html[data-theme="newsprint"] {
+        color-scheme: light;
+        --boot-bg: #f3f2ee;
+        --boot-bg-subtle: #eae8e1;
+        --boot-fg: #1f0909;
+        --boot-fg-muted: #6e685f;
+        --boot-accent: #8b4513;
+        --boot-accent-glow: rgba(139, 69, 19, 0.1);
+        --boot-track: rgba(31, 9, 9, 0.09);
+        --boot-card-border: rgba(31, 9, 9, 0.08);
+        --boot-logo-bg: linear-gradient(180deg, #faf9f5 0%, #ebe9e2 100%);
+        --boot-logo-shadow:
+          0 2px 6px rgba(31, 9, 9, 0.06),
+          0 10px 24px -4px rgba(31, 9, 9, 0.08),
+          inset 0 1px 0 rgba(255, 255, 255, 0.7);
+        --boot-dot: rgba(31, 9, 9, 0.045);
+        --boot-title-a: #2563eb;
+        --boot-title-b: #4f46e5;
+      }
+
+      html[data-theme="pixyll"] {
+        color-scheme: light;
+        --boot-bg: #fafafa;
+        --boot-bg-subtle: #f0f0f0;
+        --boot-fg: #333333;
+        --boot-fg-muted: #777777;
+        --boot-accent: #007acc;
+        --boot-accent-glow: rgba(0, 122, 204, 0.11);
+        --boot-track: rgba(0, 0, 0, 0.08);
+        --boot-card-border: rgba(0, 0, 0, 0.07);
+        --boot-logo-bg: linear-gradient(180deg, #ffffff 0%, #f4f4f4 100%);
+        --boot-logo-shadow:
+          0 2px 5px rgba(0, 0, 0, 0.05),
+          0 10px 24px -4px rgba(0, 0, 0, 0.07),
+          inset 0 1px 0 #ffffff;
+        --boot-dot: rgba(0, 0, 0, 0.04);
+        --boot-title-a: #2563eb;
+        --boot-title-b: #4f46e5;
+      }
+
+      html[data-theme="whitey"] {
+        color-scheme: light;
+        --boot-bg: #fdfdfd;
+        --boot-bg-subtle: #f5f5f5;
+        --boot-fg: #222222;
+        --boot-fg-muted: #707070;
+        --boot-accent: #2b6cb0;
+        --boot-accent-glow: rgba(43, 108, 176, 0.11);
+        --boot-track: rgba(0, 0, 0, 0.08);
+        --boot-card-border: rgba(0, 0, 0, 0.07);
+        --boot-logo-bg: linear-gradient(180deg, #ffffff 0%, #f5f5f5 100%);
+        --boot-logo-shadow:
+          0 2px 5px rgba(0, 0, 0, 0.05),
+          0 10px 24px -4px rgba(0, 0, 0, 0.07),
+          inset 0 1px 0 #ffffff;
+        --boot-dot: rgba(0, 0, 0, 0.04);
+        --boot-title-a: #2563eb;
+        --boot-title-b: #4f46e5;
+      }
+
+      /* ==========================================================================
+         2. 全局容器与启动遮罩
+         ========================================================================== */
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: var(--boot-bg);
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+      }
+
+      #boot-splash {
+        position: fixed;
+        inset: 0;
+        z-index: 9999;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background-color: var(--boot-bg);
+        /* 顶部微环境光晕，塑造桌面级空间纵深感 */
+        background-image: radial-gradient(
+          circle 520px at 50% 42%,
+          var(--boot-accent-glow),
+          transparent 75%
+        );
+        transition:
+          opacity 0.28s cubic-bezier(0.22, 1, 0.36, 1),
+          transform 0.28s cubic-bezier(0.22, 1, 0.36, 1),
+          filter 0.28s cubic-bezier(0.22, 1, 0.36, 1);
+        will-change: opacity, transform;
+      }
+
+      /* 中心精密微点阵：使用径向遮罩仅在中心区域若隐若现 */
+      #boot-splash::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background-image: radial-gradient(var(--boot-dot) 1px, transparent 1px);
+        background-size: 20px 20px;
+        mask-image: radial-gradient(circle 320px at 50% 50%, #000 15%, transparent 85%);
+        -webkit-mask-image: radial-gradient(circle 320px at 50% 50%, #000 15%, transparent 85%);
+        pointer-events: none;
+      }
+
+      /* 启动结束退场态（保持原有 .is-done 契约） */
+      #boot-splash.is-done {
+        opacity: 0;
+        transform: scale(0.985);
+        filter: blur(4px);
+        pointer-events: none;
+      }
+
+      /* 主界面内容淡入：与启动遮罩淡出交叉进行（Apple 式启动衔接） */
+      #root .app-enter {
+        animation: app-fade-in 0.36s cubic-bezier(0.22, 1, 0.36, 1) both;
+      }
+
+      @keyframes app-fade-in {
+        from {
+          opacity: 0;
+          transform: translateY(2px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      /* ==========================================================================
+         3. 启动核心视觉卡片（Brand & Precision Loader）
+         ========================================================================== */
+      .boot-card {
+        position: relative;
+        z-index: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        width: 240px;
+        color: var(--boot-fg);
+        font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Inter",
+          "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei",
+          sans-serif;
+        user-select: none;
+        animation: card-appear 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
+      }
+
+      @keyframes card-appear {
+        from {
+          opacity: 0;
+          transform: translateY(6px) scale(0.98);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0) scale(1);
+        }
+      }
+
+      .boot-brand {
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+        justify-content: center;
+        gap: 14px;
+        width: 100%;
+      }
+
+      .boot-logo {
+        width: 52px;
+        height: 52px;
+        border-radius: 12px;
+        display: block;
+      }
+
+      .boot-title-group {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 3px;
+      }
+
+      .boot-title {
+        font-size: 28px;
+        font-weight: 650;
+        letter-spacing: -0.03em;
+        line-height: 1.15;
+        background: linear-gradient(90deg, var(--boot-title-a), var(--boot-title-b));
+        -webkit-background-clip: text;
+        background-clip: text;
+        color: transparent;
+      }
+
+      .boot-subtitle {
+        font-size: 13px;
+        font-weight: 500;
+        letter-spacing: 0.02em;
+        color: var(--boot-fg-muted);
+        opacity: 0.75;
+      }
+
+      /* ==========================================================================
+         4. 精密光学进度条（取代原本繁杂的多元素弹跳动画）
+         ========================================================================== */
+      .loading-core {
+        margin-top: 28px;
+        margin-bottom: 12px;
+        width: 148px;
+        height: 2px;
+        background: var(--boot-track);
+        border-radius: 999px;
+        position: relative;
+        overflow: hidden;
+      }
+
+      .loading-beam {
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        left: 0;
+        width: 45%;
+        border-radius: 999px;
+        background: linear-gradient(
+          90deg,
+          transparent 0%,
+          var(--boot-accent) 50%,
+          transparent 100%
+        );
+        animation: beam-sweep 1.45s cubic-bezier(0.65, 0, 0.35, 1) infinite;
+      }
+
+      @keyframes beam-sweep {
+        0% {
+          transform: translateX(-115%);
+        }
+        100% {
+          transform: translateX(235%);
+        }
+      }
+
+      .boot-hint {
+        font-size: 11.5px;
+        font-weight: 400;
+        letter-spacing: 0.02em;
+        color: var(--boot-fg-muted);
+        animation: text-breath 2.2s ease-in-out infinite alternate;
+      }
+
+      @keyframes text-breath {
+        0% {
+          opacity: 0.5;
+        }
+        100% {
+          opacity: 0.9;
+        }
+      }
+
+      /* 无障碍：减弱动态效果偏好支持 */
+      @media (prefers-reduced-motion: reduce) {
+        .boot-card,
+        .loading-beam,
+        .boot-hint {
+          animation: none;
+        }
+        .loading-beam {
+          width: 100%;
+          opacity: 0.45;
+        }
+      }
+    </style>
+  </head>
+  <body class="antialiased overflow-hidden">
+    <div id="boot-splash" role="status" aria-live="polite" aria-label="正在打开 MDCraft">
+      <div class="boot-card">
+        <div class="boot-brand">
+<img
+                class="boot-logo"
+              src="data:image/png;base64,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"
+alt="MDCraft Logo"
+                draggable="false"
+              />
+            <div class="boot-title-group">
+              <div class="boot-title">MDCraft</div>
+              <div class="boot-subtitle">开源 · 所见即所得</div>
+            </div>
+        </div>
+
+        <div class="loading-core" aria-hidden="true">
+          <div class="loading-beam"></div>
+        </div>
+
+        <div class="boot-hint">正在准备创作空间…</div>
+      </div>
+    </div>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

@@ -1,0 +1,67 @@
+/* ============================================================
+   Newsprint 主题 —— 报纸风：
+   PT Serif 衬线 / 米色纸面 #f3f2ee / 深棕墨色文字
+   正文宽 40em(~914px)；h1 衬线加粗，h2/h3 同级压缩
+   ============================================================ */
+
+[data-theme="newsprint"] {
+  color-scheme: light;
+
+  --bg: #f3f2ee;
+  --editor-bg: #f6f4ee;
+  --bg-soft: #ebe9e2;
+  --bg-hover: #e2dfd6;
+  --fg: #1f0909;
+  --fg-strong: #1a0d05;
+  --bold-color: #000000;
+  --fg-soft: #4a4137;
+  --fg-faint: #857a6c;
+  --border: #cfc8ba;
+  --accent: #065588;
+  --accent-soft: #0655881f;
+  --danger: #a03123;
+  --selection: #36284e40;
+
+  --editor-font:
+    "PT Serif", "Times New Roman", Times, "Songti SC", "SimSun", serif;
+  --editor-fs: 16px;
+  --editor-lh: 1.65;
+
+  --h1-fs: 1.875em;
+  --h2-fs: 1.3125em;
+  --h3-fs: 1.3125em;
+  --h4-fs: 1.125em;
+  --heading-color: #c0392b;
+  --link-color: #065588;
+
+  --code-bg: #eae8e0;
+  --code-border: #d6d2c4;
+  --code-radius: 2px;
+  --inline-code-bg: #e6e3d8;
+  --inline-code-color: #3d3025;
+  --inline-code-border: #d6d2c4;
+
+  --quote-border: #988f7c;
+  --quote-color: #4a4137;
+
+  --table-border: #a89f8d;
+  --table-head-bg: #e7e4da;
+  --table-zebra: rgba(231, 228, 218, 0.65);
+
+  --syn-kw: #a03123;
+  --syn-str: #22553d;
+  --syn-num: #4a3fc0;
+  --syn-com: #857a6c;
+  --syn-fn: #7d4a9e;
+  --syn-type: #a35b00;
+  --syn-prop: #065588;
+  --syn-op: #4a4137;
+  --syn-var: #1f0909;
+  --syn-mark: #857a6c;
+  --syn-code: #22553d;
+}
+
+/* newsprint：h3 normal 字重（报纸风层级） */
+[data-theme="newsprint"] .md-line-h3 {
+  font-weight: 400;
+}

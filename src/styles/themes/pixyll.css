@@ -1,0 +1,76 @@
+/* ============================================================
+   Pixyll 主题 —— Merriweather 衬线正文 + Lato 标题：
+   白底 / 紧凑正文宽 800px / 链接紫 #463F5C
+   表格仅横线（无竖线）；代码块浅底灰字
+   ============================================================ */
+
+[data-theme="pixyll"] {
+  color-scheme: light;
+
+  --bg: #ffffff;
+  --editor-bg: #fafbfa;
+  --bg-soft: #f7f8f8;
+  --bg-hover: #eceded;
+  --fg: #333333;
+  --fg-strong: #222222;
+  --bold-color: #000000;
+  --fg-soft: #5f5f5f;
+  --fg-faint: #939393;
+  --border: #e3e5e5;
+  --accent: #463f5c;
+  --accent-soft: #463f5c1c;
+  --danger: #c0392b;
+  --selection: #463f5c2e;
+
+  --editor-font:
+    "Merriweather", "PT Serif", Georgia, "Times New Roman", "Songti SC",
+    "SimSun", serif;
+  --editor-fs: 16px;
+  --editor-lh: 1.8;
+
+  --h1-fs: 2em;
+  --h2-fs: 1.5em;
+  --h3-fs: 1.25em;
+  --h4-fs: 1.1em;
+  --heading-color: #222222;
+  --link-color: #463f5c;
+
+  --code-bg: #fafafa;
+  --code-border: #e3e5e5;
+  --code-radius: 3px;
+  --inline-code-bg: #fafafa;
+  --inline-code-color: #555555;
+  --inline-code-border: #e9eaea;
+
+  --quote-border: #7a7a7a;
+  --quote-color: #5f5f5f;
+
+  --table-border: #e3e5e5;
+  --table-head-bg: #ffffff;
+  --table-zebra: rgba(247, 248, 248, 0.9);
+
+  --syn-kw: #46507e;
+  --syn-str: #22553d;
+  --syn-num: #7a3803;
+  --syn-com: #939393;
+  --syn-fn: #6b52a5;
+  --syn-type: #a35b00;
+  --syn-prop: #463f5c;
+  --syn-op: #5f5f5f;
+  --syn-var: #333333;
+  --syn-mark: #939393;
+  --syn-code: #22553d;
+}
+
+/* pixyll：表格仅横向线条 */
+[data-theme="pixyll"] .md-table th,
+[data-theme="pixyll"] .md-table td {
+  border-left: none;
+  border-right: none;
+  border-top: 1px solid var(--table-border);
+  border-bottom: 1px solid var(--table-border);
+}
+[data-theme="pixyll"] .md-table th {
+  border-top: none;
+  border-bottom: 2px solid #333333;
+}

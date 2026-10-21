@@ -1,0 +1,27 @@
+[package]
+name = "mdcraft"
+description = "MDCraft — 所见即所得 Markdown 编辑器"
+version = "0.17.1"
+edition = "2021"
+rust-version = "1.90"
+authors = ["Mayezi"]
+license = "MIT"
+
+[lib]
+name = "mdcraft_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+mdcraft-core = { path = "../crates/md-core" }
+tauri = { version = "2", features = ["protocol-asset"] }
+tauri-plugin-dialog = "2"
+# 自动更新（签名产物 + 更新清单）与安装后重启
+tauri-plugin-updater = "2"
+tauri-plugin-process = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+# 删除到系统回收站（跨平台）
+trash = "5"

@@ -1,0 +1,10 @@
+node_modules/
+dist/
+target/
+src-tauri/target/
+src-tauri/gen/schemas/
+*.local
+.DS_Store
+.temp/
+bun.lock
+*.patch

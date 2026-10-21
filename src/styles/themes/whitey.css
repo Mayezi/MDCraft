@@ -1,0 +1,107 @@
+/* ============================================================
+   Whitey 主题 —— 极简衬线：
+   Vollkorn/Palatino / 根字号 19px / 正文宽 960 → 1100(≥1400px)
+   标题居中 normal 字重 / h3 斜体
+   代码块白底无框 / 表格极简横线
+   ============================================================ */
+
+[data-theme="whitey"] {
+  color-scheme: light;
+
+  --bg: #fefefe;
+  --editor-bg: #fbfaf7;
+  --bg-soft: #f5f4f2;
+  --bg-hover: #ebeae7;
+  --fg: #333333;
+  --fg-strong: #1a1a1a;
+  --bold-color: #000000;
+  --fg-soft: #575653;
+  --fg-faint: #8f8d88;
+  --border: #dedcd7;
+  --accent: #2f2f2f;
+  --accent-soft: #2f2f2f14;
+  --danger: #a03123;
+  --selection: #b9b5ac66;
+
+  --editor-font:
+    "Vollkorn", Palatino, "Palatino Linotype", "Book Antiqua", Georgia,
+    "Songti SC", "SimSun", serif;
+  --editor-fs: 19px;
+  --editor-lh: 1.68;
+
+  --h1-fs: 2.4em;
+  --h2-fs: 1.6em;
+  --h3-fs: 1.25em;
+  --h4-fs: 1.05em;
+  --heading-color: #2f2f2f;
+  --link-color: #2f2f2f;
+
+  --code-bg: #ffffff;
+  --code-border: transparent;
+  --code-radius: 0px;
+  --inline-code-bg: #f5f4f2;
+  --inline-code-color: #444444;
+  --inline-code-border: #e7e5e1;
+
+  --quote-border: #cfcac1;
+  --quote-color: #575653;
+
+  --table-border: #dedcd7;
+  --table-head-bg: #fefefe;
+  --table-zebra: transparent;
+
+  --syn-kw: #4a4137;
+  --syn-str: #22553d;
+  --syn-num: #4a3fc0;
+  --syn-com: #8f8d88;
+  --syn-fn: #7d4a9e;
+  --syn-type: #a35b00;
+  --syn-prop: #065588;
+  --syn-op: #575653;
+  --syn-var: #333333;
+  --syn-mark: #8f8d88;
+  --syn-code: #22553d;
+}
+
+/* whitey：标题居中、normal 字重、h3 斜体（主题灵魂） */
+[data-theme="whitey"] .md-line-h1,
+[data-theme="whitey"] .md-line-h2,
+[data-theme="whitey"] .md-line-h3 {
+  text-align: center;
+  font-weight: 400;
+}
+[data-theme="whitey"] .md-line-h3 {
+  font-style: italic;
+}
+/* whitey：正文两端对齐 + 链接下划点线（原主题基因） */
+[data-theme="whitey"] .cm-content {
+  text-align: justify;
+}
+[data-theme="whitey"] .md-link {
+  color: var(--link-color);
+  text-decoration: none;
+  border-bottom: 1px dotted #2f2f2f;
+}
+[data-theme="whitey"] .md-link:hover {
+  border-bottom-style: solid;
+}
+/* whitey：表格极简（仅横线，头无底色） */
+[data-theme="whitey"] .md-table th {
+  background: transparent;
+  border-top: none;
+  border-left: none;
+  border-right: none;
+  border-bottom: 2px solid #2f2f2f;
+}
+[data-theme="whitey"] .md-table td {
+  border-left: none;
+  border-right: none;
+  border-top: none;
+  border-bottom: 1px solid var(--table-border);
+}
+/* whitey：代码块无框、白底 */
+[data-theme="whitey"] .md-fence-first,
+[data-theme="whitey"] .md-fence-last,
+[data-theme="whitey"] .md-line-fence {
+  border: none;
+}

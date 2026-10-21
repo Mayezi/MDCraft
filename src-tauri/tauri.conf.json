@@ -1,0 +1,71 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "MDCraft",
+  "version": "0.17.1",
+  "identifier": "com.mdcraft.desktop",
+  "build": {
+    "beforeDevCommand": "pnpm dev",
+    "devUrl": "http://localhost:5173",
+    "beforeBuildCommand": "pnpm build",
+    "frontendDist": "../dist"
+  },
+  "app": {
+    "windows": [
+      {
+        "label": "main",
+        "title": "MDCraft",
+        "width": 1280,
+        "height": 820,
+        "minWidth": 860,
+        "minHeight": 560,
+        "center": true,
+        "visible": true,
+        "decorations": false,
+        "backgroundColor": "#ffffff",
+        "backgroundThrottling": "disabled",
+        "dragDropEnabled": true
+      }
+    ],
+    "security": {
+      "csp": null,
+      "assetProtocol": {
+        "enable": true,
+        "scope": {
+          "requireLiteralLeadingDot": false,
+          "allow": []
+        }
+      }
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "createUpdaterArtifacts": true,
+    "publisher": "Mayezi",
+    "windows": {
+      "nsis": {
+        "installMode": "perMachine",
+        "languages": ["SimpChinese", "English"],
+        "displayLanguageSelector": true
+      }
+    },
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ]
+  },
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEUyRkFDRDFEOUU0MjNBRUQKUldUdE9rS2VIYzM2NGloTEw2SlFIbk91YUZUWSt3RU01TE1nVHVGYlo4b2QyS1RlNXV0Sm1XY3gK",
+      "endpoints": [
+        "https://github.com/Mayezi/MDCraft/releases/latest/download/latest.json"
+      ],
+      "windows": {
+        "installMode": "passive"
+      }
+    }
+  }
+}

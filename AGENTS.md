@@ -1,0 +1,55 @@
+# AGENTS.md
+
+MDCraft — 所见即所得 Markdown 编辑器（Tauri 2 + Rust 核心 + React 19 / CodeMirror 6）。项目语言为**中文**（README、代码注释、UI 文案、文档均中文），新增注释/文案请保持一致。
+
+## 命令（已核实；无测试、无 lint、无 CI，不要去找 `npm test` / eslint）
+
+- `pnpm dev` — 纯浏览器模式（无需 Rust），http://localhost:5173
+- `pnpm build` — 前端校验+构建：`tsc --noEmit && vite build`（这是 TS 类型检查入口）
+- `pnpm check:rs` — `cargo check --workspace`（Rust 校验入口）
+- `pnpm tauri dev` / `pnpm tauri build` — 桌面模式开发/打包
+- `pnpm icon` — 由 `public/app-icon.png` 重新生成 `src-tauri/icons`
+- 改动后至少跑：改前端 → `pnpm build`；改 Rust → `pnpm check:rs`。
+
+## 版本号规则
+
+版本号需三处同步：`package.json`、`src-tauri/tauri.conf.json`、`src-tauri/Cargo.toml`。
+
+- **每次小改动完成后立即自增**（不等提交 git 时才加），并三处同步 + 用 `cargo check` 更新根目录 `Cargo.lock`。
+- **修复已有功能的 bug / 对已有功能的小优化** → 加版本号**最后一位**（patch，如 `0.3.1` → `0.3.2`）。
+- **新开功能**（新增能力/交互/界面）→ 加版本号**中间一位**（minor，patch 归零，如 `0.3.2` → `0.4.0`）。
+- 每次提交前先按此规则校准版本号并三处同步，构建通过后一起 `git commit`。
+
+## 双模式后端（关键陷阱）
+
+`src/lib/backend.ts` 以 `isTauri`（`__TAURI_INTERNALS__`）分流：浏览器模式用 `localStorage`/内存示例文档，桌面模式走 Rust 命令。**打开文件夹、文件管理、文件监听、导出等仅桌面模式可用**——纯 `pnpm dev` 下这些功能是 no-op 或降级，别据此判定功能坏了。
+
+## Rust 工作区边界
+
+两个 crate（`Cargo.toml` workspace members）：
+- `crates/md-core`（包名 `mdcraft-core`）——**与 Tauri 解耦**的纯逻辑（fsutil/workspace/search/watcher），未来 CLI/Web/MCP 复用，**不要在此引入 Tauri 依赖**。
+- `src-tauri`（包名 `mdcraft`，lib `mdcraft_lib`）——薄命令壳。
+
+新增一个 Tauri 命令需三处同步：`src-tauri/src/commands.rs` 实现 → `src-tauri/src/lib.rs` 的 `invoke_handler` 注册 → `src/lib/backend.ts` 前端封装。插件权限加到 `src-tauri/capabilities/default.json`。文件写用 `fsutil::atomic_write`（tmp+fsync+rename），删除走系统回收站（`trash` crate），不做永久删除。
+
+## 编辑器架构不变量（改渲染前必读）
+
+单一数据源：**文档始终是无损 Markdown 文本，渲染只是 decoration 视图层**。行内元素默认纯渲染；**光标进入某个元素时按元素显示该元素的源码**（标记 / 链接地址 / 行内公式），移出后恢复渲染。块级元素（表格/围栏代码块/$$ 公式块/Frontmatter）仍由 `touchesSelection` 判定 + 思源式浮层 / 块级 widget 接管，不在文档流里显源码；表格单元格内部复用同一套行内渲染（未聚焦渲染，聚焦后在该格内显源码）。这个语义不要随意推翻。
+
+装饰分工（CodeMirror 限制，容易踩）：
+- `src/editor/livepreview.ts`（`ViewPlugin`）——行内/行级装饰，**不能替换换行符、不能做跨行块 replace / block widget**。
+- `src/editor/blocks.ts`（`StateField` `blockDecoField`）——**跨行块替换、block widget 必须走这里**。含 `atomicRanges`，键盘导航把块当整体跨过，浮层只在点击进入时触发（`insideRange` 开区间判定）。
+- `src/editor/markdown-config.ts`——Lezer 自定义 inline parser（`$`/`$$` 公式、`==高亮==`、`<u>`下划线）。语法扩展加这里并装进 `setup.ts` 的 `mdLanguage`。
+- 渲染样式在 `src/styles/editor.css`（以装饰 class / `data-*` 属性驱动）。
+
+## 状态与主题
+
+- 编辑器状态池在 React 之外：`src/store.ts` 的 `editorStates: Map<docId, EditorState>`；应用状态用 zustand `useStore`。避免把 EditorState 放进 React state。
+- 主题经 `document.documentElement.dataset.theme` 切换，Tailwind `darkMode` 绑定 `[data-theme="night"]`。新增主题需：`src/styles/themes/*.css` + `main.tsx` import + `lib/types.ts` 的 `ThemeName` + `store.ts` 迁移分支。Night 是唯一暗色主题。
+
+## 约定
+
+- 路径别名 `@` → `src`（vite + tsconfig 双配置）。
+- TS 严格且 `noUnusedLocals`/`noUnusedParameters` 开启——未使用的导入/变量会让 `pnpm build` 失败。
+- UI 组件 `src/ui/`，编辑器逻辑 `src/editor/`，后端抽象与导出 `src/lib/`。
+- `Markdown 支持格式全览.md` 是人工核对渲染的全语法参考文档。

@@ -1,0 +1,490 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ============================================================
+   动效基础：统一缓动 / 时长，供各组件复用
+   ============================================================ */
+:root {
+  --ease-smooth: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-standard: cubic-bezier(0.4, 0, 0.2, 1);
+  --dur-1: 120ms;
+  --dur-2: 180ms;
+  --dur-3: 260ms;
+}
+
+@keyframes ui-pop-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes ui-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes panel-in-right {
+  from {
+    opacity: 0;
+    transform: translateX(10px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes panel-in-left {
+  from {
+    opacity: 0;
+    transform: translateX(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes doc-in {
+  from {
+    opacity: 0.4;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes tab-in {
+  from {
+    opacity: 0;
+    transform: translateY(3px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes tree-child-in {
+  from {
+    opacity: 0;
+    transform: translateY(-3px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes modal-card-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* 弹层统一样式（菜单 / 下拉 / 右键菜单） */
+.ui-pop {
+  transform-origin: top;
+  animation: ui-pop-in var(--dur-1) var(--ease-smooth);
+}
+.ui-pop-right {
+  transform-origin: top right;
+}
+
+/* ============================================================
+   侧栏伸缩：外壳裁切 + 宽度过渡，内部面板宽度固定不重排
+   ============================================================ */
+.sidebar-shell {
+  flex: 0 0 auto;
+  width: 0;
+  overflow: hidden;
+  transition: width var(--dur-3) var(--ease-smooth);
+}
+.sidebar-shell.is-open {
+  width: var(--sidebar-width, 256px);
+}
+.sidebar-shell > * {
+  height: 100%;
+}
+/* 拖拽调宽时不做过渡，宽度实时跟手 */
+html[data-sidebar-resizing] .sidebar-shell {
+  transition: none;
+}
+
+/* 侧栏页签面板入场：按切换方向轻微横移 + 淡入 */
+.sidebar-panel {
+  animation: panel-in-right var(--dur-2) var(--ease-smooth);
+}
+.sidebar-panel[data-dir="back"] {
+  animation-name: panel-in-left;
+}
+
+/* ============================================================
+   主舞台顶部环境光晕（欢迎页 Ambient Glow）
+   ============================================================ */
+.ambient-glow {
+  background: linear-gradient(
+    to bottom,
+    rgba(59, 130, 246, 0.04),
+    rgba(99, 102, 241, 0.015) 45%,
+    transparent
+  );
+}
+[data-theme="night"] .ambient-glow {
+  background: linear-gradient(
+    to bottom,
+    rgba(59, 130, 246, 0.07),
+    rgba(99, 102, 241, 0.02) 45%,
+    transparent
+  );
+}
+/* 拟物键帽：微立体投影（欢迎页快捷键卡片用） */
+.kbd-key {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  padding: 3px 6px;
+  border-radius: 5px;
+  font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1;
+  box-shadow: 0 2px 0 0 rgba(0, 0, 0, 0.08), inset 0 1px 0 0 rgba(255, 255, 255, 0.8);
+}
+[data-theme="night"] .kbd-key {
+  box-shadow: 0 2px 0 0 rgba(0, 0, 0, 0.5), inset 0 1px 0 0 rgba(255, 255, 255, 0.1);
+}
+
+/* ============================================================
+   大纲折叠：grid 0fr -> 1fr 高度过渡，子树整体收放
+   ============================================================ */
+.outline-kids {
+  display: grid;
+  grid-template-rows: 0fr;
+  opacity: 0.3;
+  transition:
+    grid-template-rows var(--dur-3) var(--ease-smooth),
+    opacity var(--dur-2) var(--ease-standard);
+}
+.outline-kids.is-open {
+  grid-template-rows: 1fr;
+  opacity: 1;
+}
+.outline-kids-inner {
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* 最近打开：内容区高度过渡 */
+.recent-body {
+  display: grid;
+  grid-template-rows: 0fr;
+  opacity: 0;
+  transition:
+    grid-template-rows var(--dur-3) var(--ease-smooth),
+    opacity var(--dur-2) var(--ease-standard);
+}
+.recent-body.is-open {
+  grid-template-rows: 1fr;
+  opacity: 1;
+}
+.recent-body-inner {
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* 标签页：活动指示条滑动 / 新标签淡入 */
+.tab-indicator {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  height: 2px;
+  border-radius: 1px;
+  background: var(--accent);
+  pointer-events: none;
+  transition:
+    transform var(--dur-3) var(--ease-smooth),
+    width var(--dur-3) var(--ease-smooth),
+    opacity var(--dur-1) ease;
+}
+.tab-enter {
+  animation: tab-in var(--dur-2) var(--ease-smooth);
+}
+
+/* 文档切换：编辑器淡入（只动 opacity，避免影响 CM6 坐标测量） */
+.doc-enter {
+  animation: doc-in var(--dur-2) var(--ease-standard);
+}
+
+/* 文件树目录展开：子项轻微下落淡入（收起仍由原生 details 完成） */
+.tree-folder[open] > :not(summary) {
+  animation: tree-child-in var(--dur-2) var(--ease-smooth);
+}
+
+/* 设置面板：原生 range 用 accent-color 跟随主题 */
+.settings-range {
+  height: 22px;
+  cursor: pointer;
+  accent-color: var(--accent);
+}
+
+/* 对话框 */
+.modal-overlay {
+  animation: ui-fade-in var(--dur-2) ease;
+}
+.modal-card {
+  animation: modal-card-in var(--dur-3) var(--ease-smooth);
+}
+
+/* 主题切换：View Transition 整页交叉淡变（不支持时直接切换） */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: 220ms;
+  animation-timing-function: ease;
+}
+
+/* 尊重系统「减少动态效果」 */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 1ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ============================================================
+   MDCraft 基础样式 —— 仅结构，颜色/排版全部走主题变量。
+   主题文件：themes/{github,newsprint,night,pixyll,whitey}.css
+   （默认变量与 GitHub 主题一致，由 themes/github.css 提供）
+   ============================================================ */
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+  background: var(--bg);
+  color: var(--fg);
+}
+
+/* 细滚动条 */
+*::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+*::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--fg-faint) 40%, transparent);
+  border-radius: 4px;
+}
+*::-webkit-scrollbar-thumb:hover {
+  background: color-mix(in srgb, var(--fg-faint) 70%, transparent);
+}
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* ============================================================
+   全局错误浮层：右下角卡片，最多 3 条（防白屏无反馈）
+   ============================================================ */
+.err-reporter {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  z-index: 200;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-width: 380px;
+}
+.err-card {
+  padding: 10px 12px;
+  border: 1px solid color-mix(in srgb, #d33 45%, var(--border));
+  border-radius: 10px;
+  background: var(--bg);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
+  font-family: -apple-system, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+}
+.err-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.err-badge {
+  flex-shrink: 0;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: #d33;
+  color: #fff;
+  font-size: 11px;
+}
+.err-title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--fg);
+  font-size: 12px;
+}
+.err-close {
+  flex-shrink: 0;
+  border: none;
+  background: none;
+  padding: 0 2px;
+  cursor: pointer;
+  color: var(--fg-faint);
+  font-size: 15px;
+  line-height: 1;
+}
+.err-close:hover {
+  color: var(--fg);
+}
+.err-detail {
+  margin: 8px 0 0;
+  max-height: 140px;
+  overflow: auto;
+  white-space: pre-wrap;
+  word-break: break-all;
+  border-radius: 6px;
+  background: var(--bg-soft);
+  padding: 8px;
+  color: var(--fg-faint);
+  font-size: 11px;
+  font-family: ui-monospace, Consolas, "Courier New", monospace;
+}
+
+/* ============================================================
+   拖放导入反馈：轻暗遮罩 + 中央提示卡片（不用白雾/模糊——
+   白色铺满 + blur 在浅色主题下观感即"白屏"）
+   ============================================================ */
+.drop-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 120;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  /* 中性轻暗：拖放反馈惯例（变暗突出卡片），主题无关 */
+  background: rgba(0, 0, 0, 0.3);
+  animation: drop-overlay-in var(--dur-2) var(--ease-smooth);
+}
+html[data-theme="night"] .drop-overlay {
+  background: rgba(0, 0, 0, 0.48);
+}
+.drop-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 26px 40px;
+  border: 1.5px dashed var(--accent);
+  border-radius: 14px;
+  background: var(--bg);
+  box-shadow: 0 10px 34px rgba(0, 0, 0, 0.28);
+  animation: drop-card-in var(--dur-3) var(--ease-smooth);
+}
+.drop-icon {
+  display: flex;
+  height: 40px;
+  width: 40px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+.drop-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--fg);
+}
+.drop-hint {
+  font-size: 11.5px;
+  color: var(--fg-faint);
+}
+@keyframes drop-overlay-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes drop-card-in {
+  from {
+    opacity: 0;
+    transform: scale(0.97) translateY(5px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* 编辑器区域加载动画：与启动遮罩 loader 同款动效，颜色读主题变量 */
+.boot-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  color: var(--fg);
+  user-select: none;
+}
+.boot-loader {
+  height: 84px;
+  aspect-ratio: 2;
+  border-bottom: 4px solid #0000;
+  background: linear-gradient(90deg, var(--fg-faint) 50%, #0000 0) -25% 100% / 50% 4px
+    repeat-x border-box;
+  position: relative;
+  animation: boot-loader-line 0.75s linear infinite;
+}
+.boot-loader::before {
+  content: "";
+  position: absolute;
+  inset: auto 42.5% 0;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: var(--accent);
+  animation: boot-loader-dot 0.75s cubic-bezier(0, 900, 1, 900) infinite;
+}
+@keyframes boot-loader-line {
+  to {
+    background-position: -125% 100%;
+  }
+}
+@keyframes boot-loader-dot {
+  0%,
+  2% {
+    bottom: 0%;
+  }
+  98%,
+  to {
+    bottom: 0.1%;
+  }
+}
+.boot-hint {
+  font-size: 11px;
+  opacity: 0.6;
+}
+@media (prefers-reduced-motion: reduce) {
+  .boot-loader,
+  .boot-loader::before {
+    animation: none;
+  }
+  .boot-loader::before {
+    bottom: 50%;
+  }
+}
