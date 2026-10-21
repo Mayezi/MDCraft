@@ -1,5 +1,0 @@
-{
-  "name": "MDCraft",
-  "description": "所见即所得 Markdown 编辑器，支持双模式、实时预览、公式渲染与多主题切换。",
-  "capabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
-}

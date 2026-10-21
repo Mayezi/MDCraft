@@ -3,6 +3,7 @@ dist/
 target/
 src-tauri/target/
 src-tauri/gen/schemas/
+.env
 *.local
 .DS_Store
 .temp/
