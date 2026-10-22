@@ -114,7 +114,7 @@ mdcraft/
 
 **更新**：`tauri-plugin-updater` + minisign 签名校验，产物托管 GitHub Releases，Actions 流水线自动构建发布。启动后静默检查（可在设置 → 更新关闭），发现新版本时右下角提示；更新包后台下载，下载期间可继续编辑，下完再确认安装（安装前自动保存未保存内容）。
 
-**文件关联**（Windows）：NSIS 安装包注册 `.md` / `.markdown` / `.mdx` 与 MDCraft 的关联 —— 双击直接用 MDCraft 打开，资源管理器里的文件图标也换成应用图标。安装后若系统里已有其它 Markdown 编辑器的默认项，Windows 会保留用户的选择，可在「右键 → 打开方式 → 始终使用此应用」里切换。
+**文件关联**（Windows）：NSIS 安装包注册 `.md` / `.markdown` / `.mdx` 与 MDCraft 的关联 —— 双击直接用 MDCraft 打开，资源管理器里的文件图标也换成应用图标。安装后若系统里已有其它 Markdown 编辑器的默认项，Windows 会保留用户的选择，可在「右键 → 打开方式 → 始终使用此应用」里切换。应用为单实例：已运行时再双击文件会在当前窗口开成新标签页，不会另开窗口。
 
 **Rust 后端**（已验证：`cargo check` + `cargo build` 通过）
 - 原子写（tmp+fsync+rename）、目录树、文件监听（notify 去抖批量推送）、删除走系统回收站

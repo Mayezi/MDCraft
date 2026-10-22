@@ -134,6 +134,18 @@ export default function App() {
     };
   }, []);
 
+  // 桌面模式：单实例转发（应用已运行时再次双击 .md）→ 在当前窗口开成新标签页
+  useEffect(() => {
+    if (!backend.isTauri) return;
+    let unlisten: (() => void) | null = null;
+    void import("@tauri-apps/api/event").then(async ({ listen }) => {
+      unlisten = await listen<string>("mdcraft-open-file", (event) => {
+        void openEditableFile(event.payload);
+      });
+    });
+    return () => unlisten?.();
+  }, []);
+
   // 桌面正式构建：启动后静默检查更新（延迟几秒，不与启动流程抢资源）；
   // 用户可在设置 → 更新里关闭「启动时自动检查更新」
   useEffect(() => {

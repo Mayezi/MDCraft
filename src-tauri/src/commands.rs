@@ -301,13 +301,21 @@ pub fn path_kind(path: String) -> Option<String> {
         .map(|m| if m.is_dir() { "dir" } else { "file" }.to_string())
 }
 
-/// 启动时由系统传入的文件路径（Windows 文件关联：双击 .md 会以 `MDCraft.exe "路径"` 启动）。
-/// 取命令行里第一个确实存在的文件；没有则返回 None（普通启动）。
-#[tauri::command]
-pub fn initial_file() -> Option<String> {
-    std::env::args()
+/// 从命令行参数里挑出第一个确实存在的文件路径。
+/// 跳过 argv[0]（可执行文件自身）与 `-` 开头的开关参数。
+pub fn pick_file_arg(args: &[String]) -> Option<String> {
+    args.iter()
         .skip(1)
         .find(|arg| !arg.starts_with('-') && Path::new(arg).is_file())
+        .cloned()
+}
+
+/// 启动时由系统传入的文件路径（Windows 文件关联：双击 .md 会以 `MDCraft.exe "路径"` 启动）。
+/// 没有则返回 None（普通启动）。
+#[tauri::command]
+pub fn initial_file() -> Option<String> {
+    let args: Vec<String> = std::env::args().collect();
+    pick_file_arg(&args)
 }
 
 #[tauri::command]

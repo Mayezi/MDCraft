@@ -1,11 +1,23 @@
 mod commands;
 
 use std::time::Duration;
-use tauri::Manager;
+use tauri::{Emitter, Manager};
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        // 单实例：第二个实例（如再次双击 .md）把命令行参数转给已运行的实例后立即退出，
+        // 由下面的回调转交前端开成新标签页，不再开新窗口。必须第一个注册。
+        .plugin(tauri_plugin_single_instance::init(|app, argv, _cwd| {
+            if let Some(path) = commands::pick_file_arg(&argv) {
+                let _ = app.emit("mdcraft-open-file", path);
+            }
+            if let Some(window) = app.get_webview_window("main") {
+                let _ = window.unminimize();
+                let _ = window.show();
+                let _ = window.set_focus();
+            }
+        }))
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_process::init())
