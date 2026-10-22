@@ -1,5 +1,5 @@
 // 设置面板：左侧分类 tab + 右侧顶部全局搜索。
-// 放跨会话偏好与全局动作（外观 / 文件与启动 / 配置文件 / 配置备份 / 更新），临时状态不进来。
+// 放跨会话偏好与全局动作（外观 / 文件与启动 / 配置 / 更新 / 关于），临时状态不进来。
 // 修改即时生效并写入桌面端 mdcraft.json（浏览器模式降级 localStorage）。
 
 import { useEffect, useId, useRef, useState, type ReactNode } from "react";
@@ -7,6 +7,7 @@ import {
   ArrowLeft,
   Download,
   ExternalLink,
+  FileText,
   FolderOpen,
   RefreshCw,
   Search,
@@ -17,8 +18,11 @@ import { useStore } from "../store";
 import * as backend from "../lib/backend";
 import { buildSettingsBackup, parseSettingsBackup } from "../lib/settingsBackup";
 import { matchSettingsRows, type SettingsSearchable } from "../lib/settingsSearch";
+import { useReleaseNotes } from "../lib/releaseNotes";
 import { APP_VERSION } from "../lib/version";
 import { checkUpdate, downloadAndInstallUpdate, useUpdateState } from "../lib/updater";
+import { MarkdownChangelog } from "./Changelog";
+import GithubIcon from "./GithubIcon";
 import { ThemeModeSwitch, ThemePaletteSelect } from "./ThemeControls";
 
 /** 主题默认字号/行高（唯一一套排版，这里镜像一份用于「跟随主题」时的显示值） */
@@ -35,17 +39,29 @@ const WIDTH_PRESETS = [
 const CATEGORIES = [
   { id: "appearance", label: "外观" },
   { id: "files", label: "文件与启动" },
-  { id: "config", label: "配置文件" },
-  { id: "backup", label: "配置备份" },
+  { id: "config", label: "配置" },
   { id: "update", label: "更新" },
+  { id: "about", label: "关于" },
 ] as const;
 
-type CategoryId = (typeof CATEGORIES)[number]["id"];
+export type SettingsCategory = (typeof CATEGORIES)[number]["id"];
+
+/** 关于页文案（同时是搜索索引的来源） */
+const ABOUT = {
+  name: "MDCraft",
+  tagline: "所见即所得 Markdown 编辑器",
+  intro: "输入 / 快速插入内容；表格、公式、图片等块级元素点击即可编辑，源码始终无损保留。",
+  tech: "Tauri 2 + Rust + React 19 + CodeMirror 6",
+  repo: "https://github.com/Mayezi/MDCraft",
+  releases: "https://github.com/Mayezi/MDCraft/releases",
+};
 
 /** 单条设置：id 同时是搜索锚点与 DOM id */
 interface RowDef extends SettingsSearchable {
   /** 右侧控件 */
   control: ReactNode;
+  /** 分类内的分组标题（可选，同组连续显示时不重复） */
+  group?: string;
 }
 
 /** 键盘聚焦描边（与项目其它按钮保持一致） */
@@ -115,7 +131,76 @@ function MiniButton({
   );
 }
 
-export default function SettingsDialog({ onClose }: { onClose: () => void }) {
+/** 关于面板：应用信息卡片 */
+function AboutPanel() {
+  return (
+    <div className="mx-auto max-w-md py-2">
+      <div id="about-app" className="flex items-center gap-3.5">
+        <img
+          src="/app-icon.png"
+          alt="MDCraft"
+          className="h-12 w-12 rounded-xl border border-[var(--border)]"
+          draggable={false}
+        />
+        <div className="min-w-0">
+          <div className="flex items-center gap-2">
+            <span className="text-[16px] font-semibold text-[var(--fg-strong)]">{ABOUT.name}</span>
+            <span className="rounded-full bg-[var(--accent-soft)] px-2 py-0.5 font-mono text-[10.5px] text-[var(--accent)]">
+              v{APP_VERSION}
+            </span>
+          </div>
+          <div className="mt-0.5 text-[12px] text-[var(--fg-faint)]">{ABOUT.tagline}</div>
+        </div>
+      </div>
+
+      <p id="about-intro" className="mt-5 text-[12.5px] leading-6 text-[var(--fg-soft)]">
+        {ABOUT.intro}
+      </p>
+
+      <dl className="mt-5 space-y-2.5 border-t border-[var(--border)] pt-4">
+        <div className="flex items-start gap-3">
+          <dt className="w-16 shrink-0 text-[12px] text-[var(--fg-faint)]">技术栈</dt>
+          <dd id="about-tech" className="min-w-0 flex-1 text-[12px] leading-5 text-[var(--fg)]">
+            {ABOUT.tech}
+          </dd>
+        </div>
+        <div className="flex items-start gap-3">
+          <dt className="w-16 shrink-0 text-[12px] text-[var(--fg-faint)]">源码</dt>
+          <dd id="about-repo" className="min-w-0 flex-1 text-[12px] leading-5 text-[var(--fg)]">
+            Mayezi/MDCraft
+          </dd>
+        </div>
+      </dl>
+
+      <div className="mt-5 flex items-center gap-2">
+        <button
+          type="button"
+          onClick={() => void backend.openUrl(ABOUT.repo)}
+          className={`flex cursor-pointer items-center gap-1.5 rounded-md bg-[var(--accent)] px-3.5 py-1.5 text-[12px] font-medium text-white transition-opacity hover:opacity-90 ${FOCUS_RING}`}
+        >
+          <GithubIcon size={14} />
+          GitHub 仓库
+        </button>
+        <button
+          type="button"
+          onClick={() => void backend.openUrl(ABOUT.releases)}
+          className={`flex cursor-pointer items-center gap-1.5 rounded-md border border-[var(--border)] px-3.5 py-1.5 text-[12px] text-[var(--fg-soft)] transition-colors hover:bg-[var(--bg-hover)] ${FOCUS_RING}`}
+        >
+          <ExternalLink size={13} />
+          全部历史版本
+        </button>
+      </div>
+    </div>
+  );
+}
+
+export default function SettingsDialog({
+  onClose,
+  initialCategory = "appearance",
+}: {
+  onClose: () => void;
+  initialCategory?: SettingsCategory;
+}) {
   const settings = useStore((s) => s.settings);
   const set = useStore((s) => s.setSettings);
   const updateState = useUpdateState();
@@ -127,11 +212,13 @@ export default function SettingsDialog({ onClose }: { onClose: () => void }) {
   /** 桌面端 mdcraft.json 的实际路径（浏览器模式为 null） */
   const [configPath, setConfigPath] = useState<string | null>(null);
   /** 左侧当前分类 tab */
-  const [category, setCategory] = useState<CategoryId>("appearance");
+  const [category, setCategory] = useState<SettingsCategory>(initialCategory);
   /** 搜索关键词（非空时右侧内容切换为搜索结果） */
   const [query, setQuery] = useState("");
   /** 搜索结果高亮项下标（按展示顺序） */
   const [activeIndex, setActiveIndex] = useState(0);
+  /** 是否展开「本版更新说明」 */
+  const [showNotes, setShowNotes] = useState(false);
   /** 待定位的设置项（搜索结果点击后跳转并闪烁高亮；seq 保证重复选中也能重放动画） */
   const [pendingFocus, setPendingFocus] = useState<{ id: string; seq: number } | null>(null);
 
@@ -219,8 +306,11 @@ export default function SettingsDialog({ onClose }: { onClose: () => void }) {
     void downloadAndInstallUpdate();
   };
 
+  // 本版更新说明按需拉取：展开时再请求，离开分类时自动收起
+  const releaseNotes = useReleaseNotes(APP_VERSION, showNotes && category === "update");
+
   /** 各分类下的设置项（渲染与搜索共用同一份数据，避免两处不同步） */
-  const rows: Record<CategoryId, RowDef[]> = {
+  const rows: Record<SettingsCategory, RowDef[]> = {
     appearance: [
       {
         id: "theme-mode",
@@ -351,6 +441,7 @@ export default function SettingsDialog({ onClose }: { onClose: () => void }) {
     config: [
       {
         id: "config-file",
+        group: "配置文件",
         title: "mdcraft.json",
         description: configPath ?? "浏览器模式无配置文件，设置保存在 localStorage",
         keywords: ["config", "json", "配置", "路径", "文件"],
@@ -367,10 +458,9 @@ export default function SettingsDialog({ onClose }: { onClose: () => void }) {
           </MiniButton>
         ) : null,
       },
-    ],
-    backup: [
       {
         id: "backup-transfer",
+        group: "配置备份",
         title: "导出 / 导入配置",
         description: "导出的备份为 JSON，仅包含设置项，不包含文档内容",
         keywords: ["backup", "备份", "导出", "导入", "export", "import"],
@@ -425,6 +515,20 @@ export default function SettingsDialog({ onClose }: { onClose: () => void }) {
         ),
       },
       {
+        id: "current-notes",
+        title: "本版更新说明",
+        description: `v${APP_VERSION} 的发布公告`,
+        keywords: ["notes", "changelog", "公告", "说明", "更新说明", "readme"],
+        control: (
+          <MiniButton
+            icon={<FileText size={13} />}
+            onClick={() => setShowNotes((v) => !v)}
+          >
+            {showNotes ? "收起" : "查看"}
+          </MiniButton>
+        ),
+      },
+      {
         id: "release-history",
         title: "全部历史版本",
         description: "在 GitHub Releases 查看过往版本与更新说明",
@@ -432,16 +536,46 @@ export default function SettingsDialog({ onClose }: { onClose: () => void }) {
         control: (
           <MiniButton
             icon={<ExternalLink size={13} />}
-            onClick={() => void backend.openUrl("https://github.com/Mayezi/MDCraft/releases")}
+            onClick={() => void backend.openUrl(ABOUT.releases)}
           >
             打开 Releases
           </MiniButton>
         ),
       },
     ],
+    about: [
+      {
+        id: "about-app",
+        title: ABOUT.name,
+        description: ABOUT.tagline,
+        keywords: ["about", "关于", "mdcraft", "应用", "介绍"],
+        control: null,
+      },
+      {
+        id: "about-intro",
+        title: "简介",
+        description: ABOUT.intro,
+        keywords: ["简介", "介绍", "intro", "功能"],
+        control: null,
+      },
+      {
+        id: "about-tech",
+        title: "技术栈",
+        description: ABOUT.tech,
+        keywords: ["技术栈", "tech", "stack", "rust", "react"],
+        control: null,
+      },
+      {
+        id: "about-repo",
+        title: "GitHub 仓库",
+        description: "源码、Issue 与历史版本",
+        keywords: ["github", "仓库", "repo", "源码", "issue"],
+        control: null,
+      },
+    ],
   };
 
-  const allRows: (RowDef & { category: CategoryId })[] = CATEGORIES.flatMap((cat) =>
+  const allRows: (RowDef & { category: SettingsCategory })[] = CATEGORIES.flatMap((cat) =>
     rows[cat.id].map((row) => ({ ...row, category: cat.id })),
   );
   const searching = query.trim().length > 0;
@@ -453,7 +587,9 @@ export default function SettingsDialog({ onClose }: { onClose: () => void }) {
   })).filter((group) => group.items.length > 0);
   const displayResults = resultGroups.flatMap((group) => group.items);
   const activeOptionId =
-    displayResults[activeIndex] && searching ? `settings-opt-${displayResults[activeIndex].id}` : undefined;
+    displayResults[activeIndex] && searching
+      ? `settings-opt-${displayResults[activeIndex].id}`
+      : undefined;
 
   // 搜索结果点击：切到对应分类、退出搜索、滚动定位并闪烁高亮
   useEffect(() => {
@@ -476,7 +612,7 @@ export default function SettingsDialog({ onClose }: { onClose: () => void }) {
     return () => window.clearTimeout(timer);
   }, [pendingFocus]);
 
-  const selectResult = (item: { category: CategoryId; id: string }) => {
+  const selectResult = (item: { category: SettingsCategory; id: string }) => {
     setCategory(item.category);
     setQuery("");
     setActiveIndex(0);
@@ -501,6 +637,9 @@ export default function SettingsDialog({ onClose }: { onClose: () => void }) {
   };
 
   const activeCategory = CATEGORIES.find((c) => c.id === category) ?? CATEGORIES[0];
+  const categoryRows = rows[category];
+  // 分类内已用分组标题时不再重复顶部分类名
+  const grouped = categoryRows.some((row) => row.group);
 
   return (
     <div
@@ -663,46 +802,60 @@ export default function SettingsDialog({ onClose }: { onClose: () => void }) {
                     </div>
                   )}
                 </div>
+              ) : category === "about" ? (
+                <AboutPanel />
               ) : (
                 <div>
-                  <div className="mb-2 flex items-center justify-between gap-3">
-                    <h3 className="text-[12px] font-semibold text-[var(--fg-soft)]">
-                      {activeCategory.label}
-                    </h3>
-                    {category === "appearance" && (
-                      <button
-                        type="button"
-                        disabled={followingTheme}
-                        onClick={() => set({ fontSize: null, lineHeight: null, contentWidth: null })}
-                        className={`text-[11px] transition-colors ${FOCUS_RING} ${
-                          followingTheme
-                            ? "cursor-default text-[var(--fg-faint)] opacity-50"
-                            : "cursor-pointer text-[var(--accent)] hover:underline"
-                        }`}
-                      >
-                        跟随主题
-                      </button>
-                    )}
-                  </div>
-                  {rows[category].map((row) => (
-                    <div
-                      key={row.id}
-                      id={`setting-${row.id}`}
-                      className="-mx-2 flex items-center justify-between gap-5 rounded-md px-2 py-2"
-                    >
-                      <div className="min-w-0">
-                        <div className="text-[13px] text-[var(--fg)]">{row.title}</div>
-                        {row.description && (
-                          <div className="mt-0.5 max-w-[360px] text-[11.5px] leading-4 text-[var(--fg-faint)]">
-                            {row.description}
+                  {!grouped && (
+                    <div className="mb-2 flex items-center justify-between gap-3">
+                      <h3 className="text-[12px] font-semibold text-[var(--fg-soft)]">
+                        {activeCategory.label}
+                      </h3>
+                      {category === "appearance" && (
+                        <button
+                          type="button"
+                          disabled={followingTheme}
+                          onClick={() => set({ fontSize: null, lineHeight: null, contentWidth: null })}
+                          className={`text-[11px] transition-colors ${FOCUS_RING} ${
+                            followingTheme
+                              ? "cursor-default text-[var(--fg-faint)] opacity-50"
+                              : "cursor-pointer text-[var(--accent)] hover:underline"
+                          }`}
+                        >
+                          跟随主题
+                        </button>
+                      )}
+                    </div>
+                  )}
+                  {categoryRows.map((row, index) => {
+                    const prev = categoryRows[index - 1];
+                    const showGroup = row.group && row.group !== prev?.group;
+                    return (
+                      <div key={row.id}>
+                        {showGroup && (
+                          <div className="mb-1.5 mt-4 px-2 text-[11px] font-medium text-[var(--fg-faint)] first:mt-0">
+                            {row.group}
                           </div>
                         )}
+                        <div
+                          id={`setting-${row.id}`}
+                          className="-mx-2 flex items-center justify-between gap-5 rounded-md px-2 py-2"
+                        >
+                          <div className="min-w-0">
+                            <div className="text-[13px] text-[var(--fg)]">{row.title}</div>
+                            {row.description && (
+                              <div className="mt-0.5 max-w-[360px] text-[11.5px] leading-4 text-[var(--fg-faint)]">
+                                {row.description}
+                              </div>
+                            )}
+                          </div>
+                          <div className="shrink-0">{row.control}</div>
+                        </div>
                       </div>
-                      <div className="shrink-0">{row.control}</div>
-                    </div>
-                  ))}
+                    );
+                  })}
 
-                  {category === "backup" && backupMsg && (
+                  {category === "config" && backupMsg && (
                     <div
                       aria-live="polite"
                       className={`px-0.5 pt-1 text-[11px] ${
@@ -714,62 +867,92 @@ export default function SettingsDialog({ onClose }: { onClose: () => void }) {
                   )}
 
                   {category === "update" && (
-                    <div
-                      aria-live="polite"
-                      className="mt-2 rounded-lg border border-[var(--border)] bg-[var(--bg-soft)] px-3 py-2.5 text-[11.5px] leading-5 text-[var(--fg-soft)]"
-                    >
-                      {updateState.status === "idle" && <span>尚未检查更新。</span>}
-                      {updateState.status === "checking" && <span>正在检查更新…</span>}
-                      {updateState.status === "up-to-date" && (
-                        <span>
-                          当前已是最新版本
-                          {updateState.date
-                            ? `（发布于 ${new Date(updateState.date).toLocaleDateString()}）`
-                            : ""}
-                          。
-                        </span>
-                      )}
-                      {updateState.status === "available" && (
-                        <div className="space-y-2">
-                          <div>
-                            发现新版本{" "}
-                            <span className="font-mono font-medium text-[var(--accent)]">
-                              v{updateState.info.version}
-                            </span>
+                    <>
+                      <div
+                        aria-live="polite"
+                        className="mt-2 rounded-lg border border-[var(--border)] bg-[var(--bg-soft)] px-3 py-2.5 text-[11.5px] leading-5 text-[var(--fg-soft)]"
+                      >
+                        {updateState.status === "idle" && <span>尚未检查更新。</span>}
+                        {updateState.status === "checking" && <span>正在检查更新…</span>}
+                        {updateState.status === "up-to-date" && (
+                          <span>
+                            当前已是最新版本
+                            {updateState.date
+                              ? `（发布于 ${new Date(updateState.date).toLocaleDateString()}）`
+                              : ""}
                             。
+                          </span>
+                        )}
+                        {updateState.status === "available" && (
+                          <div className="space-y-2">
+                            <div>
+                              发现新版本{" "}
+                              <span className="font-mono font-medium text-[var(--accent)]">
+                                v{updateState.info.version}
+                              </span>
+                              。
+                            </div>
+                            <MiniButton
+                              primary
+                              icon={<Download size={13} />}
+                              onClick={handleInstallUpdate}
+                            >
+                              {backend.isTauri ? "立即下载并安装" : "前往下载新版"}
+                            </MiniButton>
                           </div>
-                          <MiniButton
-                            primary
-                            icon={<Download size={13} />}
-                            onClick={handleInstallUpdate}
-                          >
-                            {backend.isTauri ? "立即下载并安装" : "前往下载新版"}
-                          </MiniButton>
-                        </div>
-                      )}
-                      {updateState.status === "downloading" && (
-                        <div className="space-y-1.5">
-                          <div>正在下载更新包 {updateState.progress}%</div>
-                          <div className="h-1.5 w-full overflow-hidden rounded-full bg-[var(--border)]">
-                            <div
-                              className="h-full bg-[var(--accent)] transition-all duration-200"
-                              style={{ width: `${updateState.progress}%` }}
-                            />
+                        )}
+                        {updateState.status === "downloading" && (
+                          <div className="space-y-1.5">
+                            <div>正在下载更新包 {updateState.progress}%</div>
+                            <div className="h-1.5 w-full overflow-hidden rounded-full bg-[var(--border)]">
+                              <div
+                                className="h-full bg-[var(--accent)] transition-all duration-200"
+                                style={{ width: `${updateState.progress}%` }}
+                              />
+                            </div>
                           </div>
+                        )}
+                        {updateState.status === "ready-to-install" && (
+                          <span>更新包已准备就绪，应用将自动退出并完成升级。</span>
+                        )}
+                        {updateState.status === "error" && (
+                          <div className="space-y-1.5">
+                            <div className="text-[var(--danger)]">{updateState.message}</div>
+                            <MiniButton icon={<RefreshCw size={13} />} onClick={handleCheckUpdate}>
+                              重试检查
+                            </MiniButton>
+                          </div>
+                        )}
+                      </div>
+
+                      {showNotes && (
+                        <div className="mt-3">
+                          {releaseNotes.status === "loading" && (
+                            <div className="text-[11.5px] text-[var(--fg-faint)]">
+                              正在加载本版更新说明…
+                            </div>
+                          )}
+                          {releaseNotes.status === "missing" && (
+                            <div className="text-[11.5px] text-[var(--fg-faint)]">
+                              v{APP_VERSION} 暂无发布说明（该版本还未发布到 GitHub Releases）。
+                            </div>
+                          )}
+                          {releaseNotes.status === "error" && (
+                            <div className="text-[11.5px] text-[var(--danger)]">
+                              加载失败：{releaseNotes.message}
+                            </div>
+                          )}
+                          {releaseNotes.status === "loaded" &&
+                            (releaseNotes.notes ? (
+                              <MarkdownChangelog content={releaseNotes.notes} />
+                            ) : (
+                              <div className="text-[11.5px] text-[var(--fg-faint)]">
+                                本版没有填写更新说明。
+                              </div>
+                            ))}
                         </div>
                       )}
-                      {updateState.status === "ready-to-install" && (
-                        <span>更新包已准备就绪，应用将自动退出并完成升级。</span>
-                      )}
-                      {updateState.status === "error" && (
-                        <div className="space-y-1.5">
-                          <div className="text-[var(--danger)]">{updateState.message}</div>
-                          <MiniButton icon={<RefreshCw size={13} />} onClick={handleCheckUpdate}>
-                            重试检查
-                          </MiniButton>
-                        </div>
-                      )}
-                    </div>
+                    </>
                   )}
                 </div>
               )}

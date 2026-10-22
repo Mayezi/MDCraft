@@ -1,5 +1,5 @@
-// 顶部菜单栏：文件/视图/帮助 —— 编辑快捷键集中展示在帮助菜单
-// （品牌位：应用图标 + 名称；主题入口在视图菜单；导出在文件树右键）
+// 顶部菜单栏：文件/帮助 —— 编辑快捷键集中展示在帮助菜单
+// （品牌位：应用图标 + 名称；主题入口在工具栏右侧按钮；导出在文件树右键）
 // 段落类命令由斜杠面板承载；源码模式入口在左下角状态栏（Ctrl+/ 同效）
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
@@ -11,9 +11,9 @@ import { openFolder } from "../lib/workspace";
 import { getView } from "../editor/viewref";
 import { THEME_MODES, THEME_PALETTES } from "../lib/types";
 import { PaletteDot } from "./ThemeControls";
-import { APP_VERSION } from "../lib/version";
 import { WELCOME } from "../lib/samples";
-import SettingsDialog from "./SettingsDialog";
+import GithubIcon from "./GithubIcon";
+import SettingsDialog, { type SettingsCategory } from "./SettingsDialog";
 import UpdateDialog from "./UpdateDialog";
 import { checkUpdate, useUpdateState } from "../lib/updater";
 import Tooltip from "./Tooltip";
@@ -43,11 +43,12 @@ export default function Toolbar() {
   const settings = useStore((s) => s.settings);
   const setSettings = useStore((s) => s.setSettings);
   const [menuOpen, setMenuOpen] = useState<number | null>(null);
-  const [aboutOpen, setAboutOpen] = useState(false);
   const [updateOpen, setUpdateOpen] = useState(false);
   const updateState = useUpdateState();
   const hasUpdate = updateState.status === "available";
   const [settingsOpen, setSettingsOpen] = useState(false);
+  /** 设置面板打开时定位到的分类（帮助菜单的「关于」直达设置里的「关于」） */
+  const [settingsCategory, setSettingsCategory] = useState<SettingsCategory | undefined>(undefined);
   /** 配色主题弹出菜单（主题模式用按钮循环切换，见 dbx 的做法） */
   const [paletteMenuOpen, setPaletteMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -123,6 +124,12 @@ export default function Toolbar() {
     await openFolder(root);
   };
 
+  /** 打开设置面板（可指定初始分类） */
+  const openSettings = (category?: SettingsCategory) => {
+    setSettingsCategory(category);
+    setSettingsOpen(true);
+  };
+
   const groups: MGroup[] = [
     {
       label: "文件",
@@ -184,7 +191,7 @@ export default function Toolbar() {
             void checkUpdate(true);
           },
         },
-        { label: "关于 MDCraft", run: () => setAboutOpen(true) },
+        { label: "关于 MDCraft", run: () => openSettings("about") },
       ],
     },
   ];
@@ -355,7 +362,7 @@ export default function Toolbar() {
         <Tooltip content="设置">
           <button
             aria-label="设置"
-            onClick={() => setSettingsOpen(true)}
+            onClick={() => openSettings()}
             className="my-1 flex h-8 w-7 cursor-pointer items-center justify-center rounded-md text-[var(--fg)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--fg)] active:[&_svg]:scale-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)]"
           >
             <SettingsIcon size={16} className="transition-transform duration-200" />
@@ -365,80 +372,13 @@ export default function Toolbar() {
         <WindowControls />
       </div>
 
-      {aboutOpen && <AboutDialog onClose={() => setAboutOpen(false)} />}
-      {settingsOpen && <SettingsDialog onClose={() => setSettingsOpen(false)} />}
+      {settingsOpen && (
+        <SettingsDialog
+          onClose={() => setSettingsOpen(false)}
+          initialCategory={settingsCategory}
+        />
+      )}
       <UpdateDialog open={updateOpen} onClose={() => setUpdateOpen(false)} />
-    </div>
-  );
-}
-
-function GithubIcon({ size = 16, className = "" }: { size?: number; className?: string }) {
-  return (
-    <svg
-      width={size}
-      height={size}
-      viewBox="0 0 24 24"
-      fill="currentColor"
-      className={className}
-      aria-hidden="true"
-    >
-      <path
-        fillRule="evenodd"
-        clipRule="evenodd"
-        d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.53 1.032 1.53 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"
-      />
-    </svg>
-  );
-}
-
-function AboutDialog({ onClose }: { onClose: () => void }) {
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [onClose]);
-  return (
-    <div
-      className="modal-overlay fixed inset-0 z-[100] flex items-center justify-center bg-black/30"
-      onMouseDown={(e) => e.target === e.currentTarget && onClose()}
-    >
-      <div className="modal-card w-80 rounded-xl border border-[var(--border)] bg-[var(--bg)] p-6 shadow-[0_8px_24px_rgba(0,0,0,0.2)]">
-        <div className="mb-4 flex items-center gap-3">
-          <img src="/app-icon.png" alt="MDCraft" className="h-10 w-10 rounded-lg" draggable={false} />
-          <div>
-            <div className="text-[15px] font-semibold text-[var(--fg)]">MDCraft</div>
-            <div className="text-[11px] text-[var(--fg-faint)]">v{APP_VERSION} · 开源 Markdown 编辑器</div>
-          </div>
-        </div>
-        <p className="mb-3 text-[12.5px] leading-5 text-[var(--fg-soft)]">
-          所见即所得 Markdown 编辑器。输入 <code className="rounded bg-[var(--bg-soft)] px-1">/</code>{" "}
-          快速插入内容；表格、公式、图片等块级元素点击即可编辑。
-        </p>
-        <p className="mb-5 text-[11.5px] leading-5 text-[var(--fg-faint)]">
-          技术栈：Tauri 2 + Rust + React 19 + CodeMirror 6
-        </p>
-        <div className="flex items-center gap-2">
-          <a
-            href="https://github.com/Mayezi/MDCraft"
-            target="_blank"
-            rel="noreferrer"
-            onClick={(e) => {
-              e.preventDefault();
-              void backend.openUrl("https://github.com/Mayezi/MDCraft");
-            }}
-            className="flex flex-1 items-center justify-center gap-1.5 rounded-md border border-[var(--border)] py-1.5 text-[12.5px] font-medium text-[var(--fg)] transition-colors hover:bg-[var(--bg-hover)]"
-          >
-            <GithubIcon size={14} />
-            <span>GitHub 仓库</span>
-          </a>
-          <button
-            onClick={onClose}
-            className="flex-1 cursor-pointer rounded-md bg-[var(--accent)] py-1.5 text-[12.5px] font-medium text-white transition-opacity hover:opacity-90"
-          >
-            确定
-          </button>
-        </div>
-      </div>
     </div>
   );
 }
