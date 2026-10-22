@@ -21,7 +21,7 @@ export default function ConfirmDialog({
   onCancel,
 }: {
   open: boolean;
-  title: string;
+  title: ReactNode;
   /** 正文说明（可含节点名等富文本） */
   description?: ReactNode;
   /** 补充信息（如完整路径），等宽字体单行省略 */
@@ -72,7 +72,7 @@ export default function ConfirmDialog({
         aria-modal="true"
         aria-labelledby={titleId}
         tabIndex={-1}
-        className="modal-card w-[420px] max-w-full overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--bg)] shadow-[0_20px_50px_rgba(0,0,0,0.28)] outline-none"
+        className="modal-card w-[420px] max-w-full overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--bg)] shadow-[0_20px_50px_rgba(0,0,0,0.28)] outline-none"
       >
         <div className="flex items-start gap-3.5 px-5 pt-5 pb-4">
           <span
