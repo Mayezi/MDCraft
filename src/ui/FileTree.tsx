@@ -15,6 +15,7 @@ import { notifyError } from "../lib/notify";
 import RecentFiles from "./RecentFiles";
 import ExportResultDialog from "./ExportResultDialog";
 import ConfirmDialog from "./ConfirmDialog";
+import AppIcon from "./AppIcon";
 import type { FileNode } from "../lib/types";
 
 /** 路径拼接（平台分隔符自适应：Windows 反斜杠 / 其它正斜杠） */
@@ -36,11 +37,12 @@ function isVisibleFile(name: string): boolean {
   return MARKDOWN_EXT.includes(ext) || ASSET_EXT.includes(ext);
 }
 
-/** 按扩展名返回对应文件图标（未匹配用通用文件图标） */
-function fileIcon(name: string): LucideIcon {
+/** 按扩展名返回对应文件图标（未匹配用通用文件图标；md 用应用图标） */
+function fileIcon(name: string): LucideIcon | typeof AppIcon {
   const dot = name.lastIndexOf(".");
   const ext = dot > 0 ? name.slice(dot + 1).toLowerCase() : "";
   const inList = (list: string[]) => list.includes(ext);
+  if (inList(MARKDOWN_EXT)) return AppIcon;
   if (inList(["png", "jpg", "jpeg", "gif", "webp", "svg", "bmp", "ico", "avif"])) return FileImage;
   if (inList(["mp4", "mkv", "avi", "mov", "webm", "flv", "wmv", "mpg"])) return FileVideo;
   if (inList(["mp3", "wav", "flac", "ogg", "m4a", "aac", "wma", "opus"])) return FileAudio;
