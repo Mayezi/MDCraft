@@ -20,6 +20,15 @@ MDCraft — 所见即所得 Markdown 编辑器（Tauri 2 + Rust 核心 + React 1
 - **新开功能**（新增能力/交互/界面）→ 加版本号**中间一位**（minor，patch 归零，如 `0.3.2` → `0.4.0`）。
 - 每次提交前先按此规则校准版本号并三处同步，构建通过后一起 `git commit`。
 
+## 发布流程（发版只做这些，别多做）
+
+1. 三处同步版本号（`package.json` / `src-tauri/tauri.conf.json` / `src-tauri/Cargo.toml`），`cargo check` 更新 `Cargo.lock`。
+2. 写 `release-notes/v<版本>.md`（Release 正文 + 应用内更新提示的来源）。
+3. `git add -A && git commit && git push origin main`。
+4. `git tag -a v<版本> -m "MDCraft v<版本>" && git push origin v<版本>` → 触发 `.github/workflows/release.yml`。
+
+**推完 tag 就结束，不要再管 GitHub Actions**：不轮询运行状态、不取消/重跑 run、不调 GitHub API 发布 Release、不用 gh CLI（未安装）。CI 产物与草稿 Release 由维护者自行在 GitHub 上处理。文档/chore 类提交不带版本号。
+
 ## 双模式后端（关键陷阱）
 
 `src/lib/backend.ts` 以 `isTauri`（`__TAURI_INTERNALS__`）分流：浏览器模式用 `localStorage`/内存示例文档，桌面模式走 Rust 命令。**打开文件夹、文件管理、文件监听、导出等仅桌面模式可用**——纯 `pnpm dev` 下这些功能是 no-op 或降级，别据此判定功能坏了。
