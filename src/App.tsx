@@ -7,11 +7,13 @@ import EditorLoading from "./ui/EditorLoading";
 import StatusBar from "./ui/StatusBar";
 import DropOverlay from "./ui/DropOverlay";
 import CloseConfirmDialog from "./ui/CloseConfirmDialog";
+import UpdateNotifier from "./ui/UpdateNotifier";
+import UpdateDialog from "./ui/UpdateDialog";
 import { useStore } from "./store";
 import * as backend from "./lib/backend";
 import { importDroppedPaths, importDroppedFiles } from "./lib/drop";
 import { ensureWorkspaceFor, restoreFolder } from "./lib/workspace";
-import { checkForUpdatesOnStartup } from "./lib/updater";
+import { checkForUpdatesOnStartup, closeUpdateDialog, useUpdateDialogOpen } from "./lib/updater";
 import { dismissBootSplash } from "./lib/boot-splash";
 import { applyThemeAttributes } from "./lib/theme";
 import { getView } from "./editor/viewref";
@@ -51,6 +53,8 @@ export default function App() {
   const [closeError, setCloseError] = useState<string | null>(null);
   const closePromptRef = useRef(false);
   const closingRef = useRef(false);
+  /** 更新弹窗开关（工具栏菜单与右下角通知条共用同一个弹窗实例） */
+  const updateDialogOpen = useUpdateDialogOpen();
 
   // 启动门控：无条件预热 EditorPane 的 CodeMirror chunk（无论启动时有无文档，
   // 都提前下载缓存，之后点文件才能即时渲染、不出现 EditorLoading），
@@ -113,8 +117,10 @@ export default function App() {
     if (useStore.getState().settings.restoreFolder) void restoreFolder();
   }, []);
 
-  // 桌面正式构建：启动后静默检查更新（延迟几秒，不与启动流程抢资源）
+  // 桌面正式构建：启动后静默检查更新（延迟几秒，不与启动流程抢资源）；
+  // 用户可在设置 → 更新里关闭「启动时自动检查更新」
   useEffect(() => {
+    if (!useStore.getState().settings.autoCheckUpdate) return;
     const t = setTimeout(() => void checkForUpdatesOnStartup(), 3000);
     return () => clearTimeout(t);
   }, []);
@@ -331,6 +337,8 @@ export default function App() {
         </div>
       </div>
       {dragging && <DropOverlay />}
+      <UpdateNotifier />
+      <UpdateDialog open={updateDialogOpen} onClose={closeUpdateDialog} />
       {closeDocs.length > 0 && (
         <CloseConfirmDialog
           docs={closeDocs}

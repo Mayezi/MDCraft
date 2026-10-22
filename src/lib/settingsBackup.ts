@@ -28,6 +28,7 @@ export function settingsSnapshot(settings: Settings): Settings {
     showMinimap: settings.showMinimap,
     restoreFolder: settings.restoreFolder,
     showAllFiles: settings.showAllFiles,
+    autoCheckUpdate: settings.autoCheckUpdate,
   };
 }
 
@@ -98,6 +99,7 @@ export function parseSettingsBackup(raw: string): Partial<Settings> {
   if (typeof data.showMinimap === "boolean") patch.showMinimap = data.showMinimap;
   if (typeof data.restoreFolder === "boolean") patch.restoreFolder = data.restoreFolder;
   if (typeof data.showAllFiles === "boolean") patch.showAllFiles = data.showAllFiles;
+  if (typeof data.autoCheckUpdate === "boolean") patch.autoCheckUpdate = data.autoCheckUpdate;
   if (
     typeof data.sidebarTab === "string" &&
     (SIDEBAR_TABS as readonly string[]).includes(data.sidebarTab)

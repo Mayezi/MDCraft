@@ -13,7 +13,8 @@ import {
 } from "lucide-react";
 import {
   useUpdateState,
-  downloadAndInstallUpdate,
+  startUpdateDownload,
+  installDownloadedUpdate,
   checkUpdate,
   resetUpdateState,
 } from "../lib/updater";
@@ -41,7 +42,13 @@ export default function UpdateDialog({ open, onClose }: UpdateDialogProps) {
 
   const handleInstall = async () => {
     setInstalling(true);
-    await downloadAndInstallUpdate();
+    await startUpdateDownload();
+    setInstalling(false);
+  };
+
+  const handleApplyInstall = async () => {
+    setInstalling(true);
+    await installDownloadedUpdate();
     setInstalling(false);
   };
 
@@ -235,20 +242,22 @@ export default function UpdateDialog({ open, onClose }: UpdateDialogProps) {
               </div>
 
               <p className="text-center text-[11px] text-[var(--fg-faint)]">
-                下载完成后将自动安装更新，请稍候...
+                下载在后台进行，可关闭本窗口继续编辑；下载完成后会提示安装。
               </p>
             </div>
           )}
 
-          {/* 6. 下载完成准备安装 */}
+          {/* 6. 下载完成等待安装 */}
           {updateState.status === "ready-to-install" && (
             <div className="flex flex-col items-center justify-center py-6 text-center">
               <div className="flex h-12 w-12 items-center justify-center rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 mb-3">
                 <CheckCircle2 size={28} />
               </div>
-              <p className="text-base font-semibold text-[var(--fg-strong)]">更新包已准备就绪</p>
+              <p className="text-base font-semibold text-[var(--fg-strong)]">
+                v{updateState.version} 更新包已准备就绪
+              </p>
               <p className="mt-1 text-xs text-[var(--fg-faint)]">
-                安装程序即将启动，应用程序将在安装时自动退出并完成升级。
+                安装时应用会自动退出，未保存的内容请先保存后再安装。
               </p>
             </div>
           )}
@@ -300,7 +309,19 @@ export default function UpdateDialog({ open, onClose }: UpdateDialogProps) {
                 className="flex cursor-pointer items-center gap-1.5 rounded-lg bg-[var(--accent)] px-4 py-1.5 text-xs font-semibold text-white shadow-sm transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 <Download size={14} />
-                {isTauri ? "立即下载并安装" : "前往下载新版"}
+                {isTauri ? "下载更新" : "前往下载新版"}
+              </button>
+            )}
+
+            {updateState.status === "ready-to-install" && (
+              <button
+                type="button"
+                disabled={installing}
+                onClick={() => void handleApplyInstall()}
+                className="flex cursor-pointer items-center gap-1.5 rounded-lg bg-[var(--accent)] px-4 py-1.5 text-xs font-semibold text-white shadow-sm transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <Download size={14} />
+                立即安装并重启
               </button>
             )}
           </div>

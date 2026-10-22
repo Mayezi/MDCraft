@@ -100,12 +100,20 @@ export interface Settings {
   restoreFolder: boolean;
   /** 目录树显示所有文件（关闭则仅显示 Markdown 与资源文件） */
   showAllFiles: boolean;
+  /** 启动时自动检查更新 */
+  autoCheckUpdate: boolean;
 }
 
 /** 可持久化偏好的默认值（不含主题/侧栏等由各自入口管理的字段） */
 export const DEFAULT_PREFERENCES: Pick<
   Settings,
-  "fontSize" | "lineHeight" | "contentWidth" | "showMinimap" | "restoreFolder" | "showAllFiles"
+  | "fontSize"
+  | "lineHeight"
+  | "contentWidth"
+  | "showMinimap"
+  | "restoreFolder"
+  | "showAllFiles"
+  | "autoCheckUpdate"
 > = {
   fontSize: null,
   lineHeight: null,
@@ -113,4 +121,5 @@ export const DEFAULT_PREFERENCES: Pick<
   showMinimap: true,
   restoreFolder: true,
   showAllFiles: false,
+  autoCheckUpdate: true,
 };

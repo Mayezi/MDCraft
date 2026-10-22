@@ -1,11 +1,12 @@
-// 客户端更新模块：支持静默检查、手动检查、进度展示与一键安装
+// 客户端更新模块：支持静默检查、手动检查、后台下载与安装确认
 //
 // 1. 桌面正式模式走 Tauri 官方更新插件（@tauri-apps/plugin-updater），配合 minisign 签名与增量安装；
 // 2. 网页/开发模式自动降级为查询 GitHub Releases API，呈现新版说明与下载入口；
-// 3. 支持实时下载进度回调（百分比 / 已下载大小 / 总量）。
+// 3. 下载与安装分离：下载在后台进行（可关闭弹窗继续编辑），下完再由用户确认安装。
 
 import * as backend from "./backend";
 import { APP_VERSION } from "./version";
+import { saveAllDirty } from "./docActions";
 import { useState, useEffect } from "react";
 import type { Update } from "@tauri-apps/plugin-updater";
 
@@ -29,16 +30,30 @@ export type UpdateState =
       date?: string;
       releaseUrl?: string;
     }
-  | { status: "downloading"; progress: number; total?: number; downloaded: number }
-  | { status: "ready-to-install" }
+  | { status: "downloading"; version: string; progress: number; total?: number; downloaded: number }
+  | { status: "ready-to-install"; version: string }
   | { status: "error"; message: string };
 
 let currentState: UpdateState = { status: "idle" };
 const listeners = new Set<(state: UpdateState) => void>();
 
+/** 待安装的更新：持有 Rust 侧资源，必须存活到 install 结束 */
+let pendingUpdate: Update | null = null;
+/** 更新包是否已下载完成（避免对同一个包重复下载） */
+let packageReady = false;
+
 function setState(next: UpdateState) {
   currentState = next;
   listeners.forEach((fn) => fn(next));
+}
+
+/** 释放待安装更新的 Rust 侧资源（已下好的安装包随资源一起丢弃，不可调用） */
+function releasePendingUpdate(): void {
+  if (!pendingUpdate) return;
+  const old = pendingUpdate;
+  pendingUpdate = null;
+  packageReady = false;
+  void old.close().catch(() => {});
 }
 
 export function getUpdateState(): UpdateState {
@@ -59,6 +74,38 @@ export function useUpdateState(): UpdateState {
     return subscribeUpdate(setLocalState);
   }, []);
   return state;
+}
+
+// ---------- 更新弹窗开关（工具栏菜单与右下角通知条共用同一个弹窗实例） ----------
+
+let dialogOpen = false;
+const dialogListeners = new Set<(open: boolean) => void>();
+
+/** 打开更新弹窗 */
+export function openUpdateDialog(): void {
+  if (dialogOpen) return;
+  dialogOpen = true;
+  dialogListeners.forEach((fn) => fn(true));
+}
+
+/** 关闭更新弹窗 */
+export function closeUpdateDialog(): void {
+  if (!dialogOpen) return;
+  dialogOpen = false;
+  dialogListeners.forEach((fn) => fn(false));
+}
+
+/** React hook 订阅更新弹窗开关状态 */
+export function useUpdateDialogOpen(): boolean {
+  const [open, setOpen] = useState(dialogOpen);
+  useEffect(() => {
+    const fn = (value: boolean) => setOpen(value);
+    dialogListeners.add(fn);
+    return () => {
+      dialogListeners.delete(fn);
+    };
+  }, []);
+  return open;
 }
 
 /** 是否跑在 vite dev server 上（开发构建不覆盖正在运行的二进制） */
@@ -97,6 +144,8 @@ export async function checkUpdate(manual = false): Promise<UpdateState> {
       const { check } = await import("@tauri-apps/plugin-updater");
       const update = await check();
       if (!update) {
+        // 无更新：没有待安装的包了，释放残留资源
+        if (!packageReady) releasePendingUpdate();
         let currentNotes: string | undefined;
         let releaseDate: string | undefined;
         let releaseUrl: string | undefined;
@@ -126,12 +175,23 @@ export async function checkUpdate(manual = false): Promise<UpdateState> {
         return next;
       }
 
+      // 资源复用：同版本沿用已有资源（可能已下好安装包），异版本释放旧资源后换新的
+      if (!pendingUpdate) {
+        pendingUpdate = update;
+      } else if (pendingUpdate.version === update.version) {
+        // 沿用旧资源，释放本次检查重复创建的资源
+        void update.close().catch(() => {});
+      } else {
+        releasePendingUpdate();
+        pendingUpdate = update;
+      }
+
       const info: UpdateInfo = {
         version: update.version,
         currentVersion: update.currentVersion || APP_VERSION,
         body: update.body?.trim() || "无更新说明",
         date: update.date,
-        rawUpdate: update,
+        rawUpdate: pendingUpdate,
         downloadUrl: `https://github.com/Mayezi/MDCraft/releases/tag/v${update.version}`,
       };
       const next: UpdateState = { status: "available", info };
@@ -206,30 +266,42 @@ export async function checkForUpdatesOnStartup(): Promise<void> {
   await checkUpdate(false);
 }
 
-/** 下载并安装当前可用更新 */
-export async function downloadAndInstallUpdate(
+/**
+ * 后台下载更新包：下载在 Rust 侧进行，界面不阻塞 —— 关闭弹窗后仍会继续下载，
+ * 进度写入全局状态，由右下角通知条展示。下载完成后进入「就绪」状态，等待用户确认安装。
+ */
+export async function startUpdateDownload(
   onProgress?: (progress: number, downloaded: number, total?: number) => void,
 ): Promise<void> {
-  if (currentState.status !== "available") return;
-  const raw = currentState.info.rawUpdate;
+  if (currentState.status === "downloading") return;
+  const raw = pendingUpdate;
   if (!raw) {
-    // 浏览器或开发环境：直接在新标签页（桌面端则用系统浏览器）打开下载链接
-    if (currentState.info.downloadUrl && typeof window !== "undefined") {
-      void backend.openUrl(currentState.info.downloadUrl);
-    }
+    // 浏览器或开发环境：没有可下载的安装包，直接用系统浏览器打开下载页
+    const url =
+      currentState.status === "available"
+        ? currentState.info.downloadUrl
+        : "https://github.com/Mayezi/MDCraft/releases/latest";
+    if (url) void backend.openUrl(url);
+    return;
+  }
+  // 包已经下好，直接进入就绪状态
+  if (packageReady) {
+    setState({ status: "ready-to-install", version: raw.version });
     return;
   }
 
+  const version = raw.version;
+  setState({ status: "downloading", version, progress: 0, total: 0, downloaded: 0 });
+
   let totalBytes = 0;
   let downloadedBytes = 0;
-  setState({ status: "downloading", progress: 0, total: 0, downloaded: 0 });
-
   try {
-    await raw.downloadAndInstall((event) => {
+    await raw.download((event) => {
       if (event.event === "Started") {
         totalBytes = event.data.contentLength ?? 0;
         setState({
           status: "downloading",
+          version,
           progress: 0,
           total: totalBytes,
           downloaded: 0,
@@ -240,19 +312,42 @@ export async function downloadAndInstallUpdate(
         const pct = totalBytes > 0 ? Math.min(100, Math.round((downloadedBytes / totalBytes) * 100)) : 0;
         setState({
           status: "downloading",
+          version,
           progress: pct,
           total: totalBytes,
           downloaded: downloadedBytes,
         });
         onProgress?.(pct, downloadedBytes, totalBytes);
-      } else if (event.event === "Finished") {
-        setState({ status: "ready-to-install" });
       }
     });
+    packageReady = true;
+    setState({ status: "ready-to-install", version });
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
-    console.error("[MDCraft Updater] 下载安装失败：", err);
+    console.error("[MDCraft Updater] 下载更新失败：", err);
     setState({ status: "error", message: `下载更新失败：${msg}` });
+  }
+}
+
+/**
+ * 安装已下载的更新包：Windows 下启动安装器并退出应用，其余平台需用户手动重启。
+ * 安装会直接退出应用，因此先落盘未保存的内容；用户取消保存则中止安装。
+ */
+export async function installDownloadedUpdate(): Promise<void> {
+  const raw = pendingUpdate;
+  if (!raw || !packageReady) return;
+  const saved = await saveAllDirty();
+  if (!saved) {
+    // 保存被取消或失败：保持「就绪」状态，用户可稍后再装
+    setState({ status: "ready-to-install", version: raw.version });
+    return;
+  }
+  try {
+    await raw.install();
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error("[MDCraft Updater] 安装更新失败：", err);
+    setState({ status: "error", message: `安装更新失败：${msg}` });
   }
 }
 

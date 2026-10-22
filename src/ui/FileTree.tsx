@@ -11,6 +11,7 @@ import { openDocByPath, exportDocByPath, exportDraftDoc } from "../lib/docAction
 import { openFolder } from "../lib/workspace";
 import RecentFiles from "./RecentFiles";
 import ExportResultDialog from "./ExportResultDialog";
+import ConfirmDialog from "./ConfirmDialog";
 import type { FileNode } from "../lib/types";
 
 /** 路径拼接（平台分隔符自适应：Windows 反斜杠 / 其它正斜杠） */
@@ -657,6 +658,12 @@ export default function FileTree({ onRecentHeightChange }: { onRecentHeightChang
   const [draftMenu, setDraftMenu] = useState<{ x: number; y: number; docId: string } | null>(null);
   /** 导出完成提示：待打开的导出文件路径 */
   const [exportedPath, setExportedPath] = useState<string | null>(null);
+  /** 待确认删除的节点（删除走应用内确认框，不用原生 window.confirm） */
+  const [pendingDelete, setPendingDelete] = useState<FileNode | null>(null);
+  /** 删除失败信息（弹窗保持打开时展示） */
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  /** 删除执行中 */
+  const [deleting, setDeleting] = useState(false);
 
 
   useEffect(() => {
@@ -1053,25 +1060,53 @@ export default function FileTree({ onRecentHeightChange }: { onRecentHeightChang
             setMenu(null);
             const n = m.node;
             if (!n) return;
-            const isDirWithKids = n.isDir; // 简化：目录一律确认
-            const msg = isDirWithKids
-              ? `删除文件夹「${n.name}」及其全部内容到回收站？`
-              : `删除「${n.name}」到回收站？`;
-            if (!confirm(msg)) return;
-            void (async () => {
-              try {
-                await backend.trashPath(n.path);
-                // 关闭以此目录为底的打开文档
-                const affected = useStore.getState().docs.filter((d) => d.path?.startsWith(n.path));
-                affected.forEach((d) => useStore.getState().closeDoc(d.id));
-                refresh();
-              } catch (e) {
-                alert(`删除失败：${e}`);
-              }
-            })();
+            // 交给应用内确认框：原生 window.confirm 在 Tauri 里返回值不可靠
+            setDeleteError(null);
+            setPendingDelete(n);
           }}
 />
       )}
+      <ConfirmDialog
+        open={pendingDelete !== null}
+        danger
+        busy={deleting}
+        icon={<Trash2 size={17} />}
+        title={pendingDelete?.isDir ? "删除文件夹" : "删除文件"}
+        description={
+          pendingDelete?.isDir ? (
+            <>「{pendingDelete.name}」及其全部内容将移到系统回收站。</>
+          ) : (
+            <>「{pendingDelete?.name}」将移到系统回收站。</>
+          )
+        }
+        detail={pendingDelete?.path}
+        confirmText="移到回收站"
+        error={deleteError}
+        onCancel={() => {
+          setPendingDelete(null);
+          setDeleteError(null);
+        }}
+        onConfirm={() => {
+          const n = pendingDelete;
+          if (!n || deleting) return;
+          setDeleting(true);
+          void (async () => {
+            try {
+              await backend.trashPath(n.path);
+              // 关闭以此目录为底的打开文档
+              const affected = useStore.getState().docs.filter((d) => d.path?.startsWith(n.path));
+              affected.forEach((d) => useStore.getState().closeDoc(d.id));
+              setPendingDelete(null);
+              setDeleteError(null);
+              refresh();
+            } catch (e) {
+              setDeleteError(`删除失败：${e}`);
+            } finally {
+              setDeleting(false);
+            }
+          })();
+        }}
+      />
       {exportedPath && (
         <ExportResultDialog
           path={exportedPath}

@@ -14,8 +14,7 @@ import { PaletteDot } from "./ThemeControls";
 import { WELCOME } from "../lib/samples";
 import GithubIcon from "./GithubIcon";
 import SettingsDialog, { type SettingsCategory } from "./SettingsDialog";
-import UpdateDialog from "./UpdateDialog";
-import { checkUpdate, useUpdateState } from "../lib/updater";
+import { checkUpdate, openUpdateDialog, useUpdateState } from "../lib/updater";
 import Tooltip from "./Tooltip";
 import WindowControls from "./WindowControls";
 
@@ -43,7 +42,6 @@ export default function Toolbar() {
   const settings = useStore((s) => s.settings);
   const setSettings = useStore((s) => s.setSettings);
   const [menuOpen, setMenuOpen] = useState<number | null>(null);
-  const [updateOpen, setUpdateOpen] = useState(false);
   const updateState = useUpdateState();
   const hasUpdate = updateState.status === "available";
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -187,7 +185,7 @@ export default function Toolbar() {
           label: "检查更新...",
           hint: hasUpdate ? `新版 v${updateState.info.version}` : undefined,
           run: () => {
-            setUpdateOpen(true);
+            openUpdateDialog();
             void checkUpdate(true);
           },
         },
@@ -381,7 +379,6 @@ export default function Toolbar() {
           initialCategory={settingsCategory}
         />
       )}
-      <UpdateDialog open={updateOpen} onClose={() => setUpdateOpen(false)} />
     </div>
   );
 }

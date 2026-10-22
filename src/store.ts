@@ -127,6 +127,7 @@ const savedPreferences = (() => {
     out.showMinimap = bool(obj.showMinimap, DEFAULT_PREFERENCES.showMinimap);
     out.restoreFolder = bool(obj.restoreFolder, DEFAULT_PREFERENCES.restoreFolder);
     out.showAllFiles = bool(obj.showAllFiles, DEFAULT_PREFERENCES.showAllFiles);
+    out.autoCheckUpdate = bool(obj.autoCheckUpdate, DEFAULT_PREFERENCES.autoCheckUpdate);
   } catch {
     /* 坏数据静默回落默认值 */
   }
@@ -141,6 +142,7 @@ const PERSISTED_KEYS = [
   "showMinimap",
   "restoreFolder",
   "showAllFiles",
+  "autoCheckUpdate",
 ] as const satisfies readonly (keyof Settings)[];
 
 function persistPreferences(settings: Settings) {
@@ -151,6 +153,7 @@ function persistPreferences(settings: Settings) {
     showMinimap: settings.showMinimap,
     restoreFolder: settings.restoreFolder,
     showAllFiles: settings.showAllFiles,
+    autoCheckUpdate: settings.autoCheckUpdate,
   };
   try {
     localStorage.setItem("mdcraft:settings", JSON.stringify(prefs));

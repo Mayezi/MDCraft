@@ -22,7 +22,8 @@ import { useReleaseNotes, type ReleaseNotesState } from "../lib/releaseNotes";
 import { APP_VERSION } from "../lib/version";
 import {
   checkUpdate,
-  downloadAndInstallUpdate,
+  installDownloadedUpdate,
+  startUpdateDownload,
   useUpdateState,
   type UpdateState,
 } from "../lib/updater";
@@ -206,10 +207,12 @@ function UpdateStatusBlock({
   state,
   onCheck,
   onInstall,
+  onApplyInstall,
 }: {
   state: UpdateState;
   onCheck: () => void;
   onInstall: () => void;
+  onApplyInstall: () => void;
 }) {
   return (
     <div
@@ -231,13 +234,13 @@ function UpdateStatusBlock({
             <span className="font-mono font-medium text-[var(--accent)]">v{state.info.version}</span>。
           </div>
           <MiniButton primary icon={<Download size={13} />} onClick={onInstall}>
-            {backend.isTauri ? "立即下载并安装" : "前往下载新版"}
+            {backend.isTauri ? "下载更新" : "前往下载新版"}
           </MiniButton>
         </div>
       )}
       {state.status === "downloading" && (
         <div className="space-y-1.5">
-          <div>正在下载更新包 {state.progress}%</div>
+          <div>正在后台下载更新包 {state.progress}%</div>
           <div className="h-1.5 w-full overflow-hidden rounded-full bg-[var(--border)]">
             <div
               className="h-full bg-[var(--accent)] transition-all duration-200"
@@ -247,7 +250,12 @@ function UpdateStatusBlock({
         </div>
       )}
       {state.status === "ready-to-install" && (
-        <span>更新包已准备就绪，应用将自动退出并完成升级。</span>
+        <div className="space-y-2">
+          <div>v{state.version} 更新包已下载完成，安装时应用会自动退出。</div>
+          <MiniButton primary icon={<Download size={13} />} onClick={onApplyInstall}>
+            立即安装并重启
+          </MiniButton>
+        </div>
       )}
       {state.status === "error" && (
         <div className="space-y-1.5">
@@ -395,7 +403,11 @@ export default function SettingsDialog({
   };
 
   const handleInstallUpdate = () => {
-    void downloadAndInstallUpdate();
+    void startUpdateDownload();
+  };
+
+  const handleApplyUpdate = () => {
+    void installDownloadedUpdate();
   };
 
   // 本版更新说明按需拉取：展开时再请求，离开分类时自动收起
@@ -618,6 +630,19 @@ export default function SettingsDialog({
           >
             {updateState.status === "checking" ? "检查中…" : "检查更新"}
           </MiniButton>
+        ),
+      },
+      {
+        id: "auto-check-update",
+        title: "启动时自动检查更新",
+        description: "启动后静默检查新版本并在右下角提示；关闭则只能手动点击「检查更新」",
+        keywords: ["update", "更新", "启动", "自动", "auto", "startup", "check"],
+        control: (
+          <Switch
+            checked={settings.autoCheckUpdate}
+            onChange={(value) => set({ autoCheckUpdate: value })}
+            label="启动时自动检查更新"
+          />
         ),
       },
       {
@@ -951,6 +976,7 @@ export default function SettingsDialog({
                             state={updateState}
                             onCheck={handleCheckUpdate}
                             onInstall={handleInstallUpdate}
+                            onApplyInstall={handleApplyUpdate}
                           />
                         )}
                       </div>
