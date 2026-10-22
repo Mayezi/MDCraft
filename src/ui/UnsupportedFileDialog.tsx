@@ -19,7 +19,7 @@ export default function UnsupportedFileDialog() {
       title={
         <>
           无法打开{" "}
-          <span className="font-mono text-blue-600 dark:text-blue-400">{name}</span>
+          <span className="break-all font-mono text-blue-600 dark:text-blue-400">{name}</span>
         </>
       }
       description={
