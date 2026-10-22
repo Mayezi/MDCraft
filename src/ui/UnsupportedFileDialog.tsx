@@ -26,7 +26,7 @@ export default function UnsupportedFileDialog() {
         <>
           MDCraft 目前专为 Markdown 与纯文本打造（如 .md .txt 等）。
           <br />
-          该文件格式暂不支持在此编辑，建议使用系统默认应用打开。
+          该文件格式暂不支持在此编辑，建议选择其他应用打开。
         </>
       }
       confirmText="选择其他应用打开"
