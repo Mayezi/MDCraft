@@ -18,9 +18,14 @@ import { useStore } from "../store";
 import * as backend from "../lib/backend";
 import { buildSettingsBackup, parseSettingsBackup } from "../lib/settingsBackup";
 import { matchSettingsRows, type SettingsSearchable } from "../lib/settingsSearch";
-import { useReleaseNotes } from "../lib/releaseNotes";
+import { useReleaseNotes, type ReleaseNotesState } from "../lib/releaseNotes";
 import { APP_VERSION } from "../lib/version";
-import { checkUpdate, downloadAndInstallUpdate, useUpdateState } from "../lib/updater";
+import {
+  checkUpdate,
+  downloadAndInstallUpdate,
+  useUpdateState,
+  type UpdateState,
+} from "../lib/updater";
 import { MarkdownChangelog } from "./Changelog";
 import GithubIcon from "./GithubIcon";
 import { ThemeModeSwitch, ThemePaletteSelect } from "./ThemeControls";
@@ -190,6 +195,91 @@ function AboutPanel() {
           全部历史版本
         </button>
       </div>
+    </div>
+  );
+}
+
+/** 更新状态块：检查结果 / 下载进度（跟在「检查更新」设置项下方） */
+function UpdateStatusBlock({
+  state,
+  onCheck,
+  onInstall,
+}: {
+  state: UpdateState;
+  onCheck: () => void;
+  onInstall: () => void;
+}) {
+  return (
+    <div
+      aria-live="polite"
+      className="mt-1 rounded-lg border border-[var(--border)] bg-[var(--bg-soft)] px-3 py-2.5 text-[11.5px] leading-5 text-[var(--fg-soft)]"
+    >
+      {state.status === "idle" && <span>尚未检查更新。</span>}
+      {state.status === "checking" && <span>正在检查更新…</span>}
+      {state.status === "up-to-date" && (
+        <span>
+          当前已是最新版本
+          {state.date ? `（发布于 ${new Date(state.date).toLocaleDateString()}）` : ""}。
+        </span>
+      )}
+      {state.status === "available" && (
+        <div className="space-y-2">
+          <div>
+            发现新版本{" "}
+            <span className="font-mono font-medium text-[var(--accent)]">v{state.info.version}</span>。
+          </div>
+          <MiniButton primary icon={<Download size={13} />} onClick={onInstall}>
+            {backend.isTauri ? "立即下载并安装" : "前往下载新版"}
+          </MiniButton>
+        </div>
+      )}
+      {state.status === "downloading" && (
+        <div className="space-y-1.5">
+          <div>正在下载更新包 {state.progress}%</div>
+          <div className="h-1.5 w-full overflow-hidden rounded-full bg-[var(--border)]">
+            <div
+              className="h-full bg-[var(--accent)] transition-all duration-200"
+              style={{ width: `${state.progress}%` }}
+            />
+          </div>
+        </div>
+      )}
+      {state.status === "ready-to-install" && (
+        <span>更新包已准备就绪，应用将自动退出并完成升级。</span>
+      )}
+      {state.status === "error" && (
+        <div className="space-y-1.5">
+          <div className="text-[var(--danger)]">{state.message}</div>
+          <MiniButton icon={<RefreshCw size={13} />} onClick={onCheck}>
+            重试检查
+          </MiniButton>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** 本版发布公告块（跟在「本版更新说明」设置项下方） */
+function ReleaseNotesBlock({ state, version }: { state: ReleaseNotesState; version: string }) {
+  return (
+    <div className="mt-1">
+      {state.status === "loading" && (
+        <div className="text-[11.5px] text-[var(--fg-faint)]">正在加载本版更新说明…</div>
+      )}
+      {state.status === "missing" && (
+        <div className="text-[11.5px] text-[var(--fg-faint)]">
+          v{version} 暂无发布说明（该版本还未发布到 GitHub Releases）。
+        </div>
+      )}
+      {state.status === "error" && (
+        <div className="text-[11.5px] text-[var(--danger)]">加载失败：{state.message}</div>
+      )}
+      {state.status === "loaded" &&
+        (state.notes ? (
+          <MarkdownChangelog content={state.notes} />
+        ) : (
+          <div className="text-[11.5px] text-[var(--fg-faint)]">本版没有填写更新说明。</div>
+        ))}
     </div>
   );
 }
@@ -494,6 +584,20 @@ export default function SettingsDialog({
         control: <span className="font-mono text-[12.5px] text-[var(--fg-soft)]">v{APP_VERSION}</span>,
       },
       {
+        id: "current-notes",
+        title: "本版更新说明",
+        description: `v${APP_VERSION} 的发布公告`,
+        keywords: ["notes", "changelog", "公告", "说明", "更新说明", "readme"],
+        control: (
+          <MiniButton
+            icon={<FileText size={13} />}
+            onClick={() => setShowNotes((v) => !v)}
+          >
+            {showNotes ? "收起" : "查看"}
+          </MiniButton>
+        ),
+      },
+      {
         id: "check-update",
         title: "检查更新",
         description: "从 GitHub Releases 获取最新版本，下载时校验签名",
@@ -511,20 +615,6 @@ export default function SettingsDialog({
             onClick={handleCheckUpdate}
           >
             {updateState.status === "checking" ? "检查中…" : "检查更新"}
-          </MiniButton>
-        ),
-      },
-      {
-        id: "current-notes",
-        title: "本版更新说明",
-        description: `v${APP_VERSION} 的发布公告`,
-        keywords: ["notes", "changelog", "公告", "说明", "更新说明", "readme"],
-        control: (
-          <MiniButton
-            icon={<FileText size={13} />}
-            onClick={() => setShowNotes((v) => !v)}
-          >
-            {showNotes ? "收起" : "查看"}
           </MiniButton>
         ),
       },
@@ -851,6 +941,16 @@ export default function SettingsDialog({
                           </div>
                           <div className="shrink-0">{row.control}</div>
                         </div>
+                        {row.id === "current-notes" && showNotes && (
+                          <ReleaseNotesBlock state={releaseNotes} version={APP_VERSION} />
+                        )}
+                        {row.id === "check-update" && (
+                          <UpdateStatusBlock
+                            state={updateState}
+                            onCheck={handleCheckUpdate}
+                            onInstall={handleInstallUpdate}
+                          />
+                        )}
                       </div>
                     );
                   })}
@@ -864,95 +964,6 @@ export default function SettingsDialog({
                     >
                       {backupMsg.text}
                     </div>
-                  )}
-
-                  {category === "update" && (
-                    <>
-                      <div
-                        aria-live="polite"
-                        className="mt-2 rounded-lg border border-[var(--border)] bg-[var(--bg-soft)] px-3 py-2.5 text-[11.5px] leading-5 text-[var(--fg-soft)]"
-                      >
-                        {updateState.status === "idle" && <span>尚未检查更新。</span>}
-                        {updateState.status === "checking" && <span>正在检查更新…</span>}
-                        {updateState.status === "up-to-date" && (
-                          <span>
-                            当前已是最新版本
-                            {updateState.date
-                              ? `（发布于 ${new Date(updateState.date).toLocaleDateString()}）`
-                              : ""}
-                            。
-                          </span>
-                        )}
-                        {updateState.status === "available" && (
-                          <div className="space-y-2">
-                            <div>
-                              发现新版本{" "}
-                              <span className="font-mono font-medium text-[var(--accent)]">
-                                v{updateState.info.version}
-                              </span>
-                              。
-                            </div>
-                            <MiniButton
-                              primary
-                              icon={<Download size={13} />}
-                              onClick={handleInstallUpdate}
-                            >
-                              {backend.isTauri ? "立即下载并安装" : "前往下载新版"}
-                            </MiniButton>
-                          </div>
-                        )}
-                        {updateState.status === "downloading" && (
-                          <div className="space-y-1.5">
-                            <div>正在下载更新包 {updateState.progress}%</div>
-                            <div className="h-1.5 w-full overflow-hidden rounded-full bg-[var(--border)]">
-                              <div
-                                className="h-full bg-[var(--accent)] transition-all duration-200"
-                                style={{ width: `${updateState.progress}%` }}
-                              />
-                            </div>
-                          </div>
-                        )}
-                        {updateState.status === "ready-to-install" && (
-                          <span>更新包已准备就绪，应用将自动退出并完成升级。</span>
-                        )}
-                        {updateState.status === "error" && (
-                          <div className="space-y-1.5">
-                            <div className="text-[var(--danger)]">{updateState.message}</div>
-                            <MiniButton icon={<RefreshCw size={13} />} onClick={handleCheckUpdate}>
-                              重试检查
-                            </MiniButton>
-                          </div>
-                        )}
-                      </div>
-
-                      {showNotes && (
-                        <div className="mt-3">
-                          {releaseNotes.status === "loading" && (
-                            <div className="text-[11.5px] text-[var(--fg-faint)]">
-                              正在加载本版更新说明…
-                            </div>
-                          )}
-                          {releaseNotes.status === "missing" && (
-                            <div className="text-[11.5px] text-[var(--fg-faint)]">
-                              v{APP_VERSION} 暂无发布说明（该版本还未发布到 GitHub Releases）。
-                            </div>
-                          )}
-                          {releaseNotes.status === "error" && (
-                            <div className="text-[11.5px] text-[var(--danger)]">
-                              加载失败：{releaseNotes.message}
-                            </div>
-                          )}
-                          {releaseNotes.status === "loaded" &&
-                            (releaseNotes.notes ? (
-                              <MarkdownChangelog content={releaseNotes.notes} />
-                            ) : (
-                              <div className="text-[11.5px] text-[var(--fg-faint)]">
-                                本版没有填写更新说明。
-                              </div>
-                            ))}
-                        </div>
-                      )}
-                    </>
                   )}
                 </div>
               )}
