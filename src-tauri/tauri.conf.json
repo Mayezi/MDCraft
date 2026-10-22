@@ -1,7 +1,7 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "MDCraft",
-  "version": "0.18.3",
+  "version": "0.18.4",
   "identifier": "com.mdcraft.desktop",
   "build": {
     "beforeDevCommand": "pnpm dev",
@@ -59,7 +59,7 @@
   },
   "plugins": {
     "updater": {
-      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEUyRkFDRDFEOUU0MjNBRUQKUldUdE9rS2VIYzM2NGloTEw2SlFIbk91YUZUWSt3RU01TE1nVHVGYlo4b2QyS1RlNXV0Sm1XY3gK",
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEZGNjU2NEE5OUM1MTU1MzkKUldRNVZWR2NxV1JsL3k4aTc5Y0tqdW9UcE81QUxEbi9QVXFidGNEM2FtVitNWC81WEMvL3p2ZCsK",
       "endpoints": [
         "https://github.com/Mayezi/MDCraft/releases/latest/download/latest.json"
       ],
