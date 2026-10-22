@@ -25,7 +25,7 @@ MDCraft — 所见即所得 Markdown 编辑器（Tauri 2 + Rust 核心 + React 1
 ## 发布流程（发版只做这些，别多做）
 
 1. 三处同步版本号（`package.json` / `src-tauri/tauri.conf.json` / `src-tauri/Cargo.toml`），`cargo check` 更新 `Cargo.lock`。
-2. 写 `release-notes/v<版本>.md`（Release 正文 + 应用内更新提示的来源）。
+2. 写 `release-notes/v<版本>.md`（Release 正文 + 应用内更新提示的来源）—— **写完先给用户确认，用户认可后再提交**（发布说明会直接面向用户，不要擅自定稿）。
 3. `git add -A && git commit`（推送由维护者执行）。
 4. 维护者推送后打 tag：`git tag -a v<版本> -m "MDCraft v<版本>" && git push origin v<版本>` → 触发 `.github/workflows/release.yml`。
 
