@@ -5,6 +5,8 @@ import { ChevronRight, FilePlus, FileText, Folder, FolderOpen } from "lucide-rea
 import * as backend from "../lib/backend";
 import { useStore } from "../store";
 import { openEditableFile } from "../lib/docActions";
+import { fileNameOf, isMarkdownFile } from "../lib/fileTypes";
+import AppIcon from "./AppIcon";
 import { openFolder } from "../lib/workspace";
 import { notifyError } from "../lib/notify";
 import type { RecentEntry } from "../lib/types";
@@ -91,21 +93,25 @@ export default function RecentFiles({ onHeightChange }: { onHeightChange?: (heig
             {(["folder", "file"] as const).map((kind) => {
               const recent = entries.filter((entry) => entry.kind === kind).slice(0, 5);
               if (!recent.length) return null;
-              const Icon = kind === "folder" ? Folder : FileText;
               return (
                 <div key={kind}>
                   <div className="px-5 py-1 text-[11px] text-[var(--fg-faint)]">{kind === "folder" ? "文件夹" : "文件"}</div>
-                  {recent.map((entry) => (
-                    <button
-                      key={entry.path}
-                      title={entry.path}
-                      onClick={() => void reopen(entry)}
-                      className="flex w-full cursor-pointer items-center gap-2 rounded px-5 py-1.5 text-left text-[12px] text-[var(--fg-soft)] transition-colors duration-150 hover:bg-[var(--bg-hover)] hover:text-[var(--fg)]"
-                    >
-                      <Icon size={14} className="shrink-0 text-[var(--fg-faint)]" />
-                      <span className="truncate">{entry.path.replace(/[\\/]+$/, "").split(/[\\/]/).pop() || entry.path}</span>
-                    </button>
-                  ))}
+                  {recent.map((entry) => {
+                    // Markdown 文档用应用图标（与目录树一致），其它文件用通用文档图标
+                    const isMd = isMarkdownFile(fileNameOf(entry.path));
+                    const Icon = kind === "folder" ? Folder : isMd ? AppIcon : FileText;
+                    return (
+                      <button
+                        key={entry.path}
+                        title={entry.path}
+                        onClick={() => void reopen(entry)}
+                        className="flex w-full cursor-pointer items-center gap-2 rounded px-5 py-1.5 text-left text-[12px] text-[var(--fg-soft)] transition-colors duration-150 hover:bg-[var(--bg-hover)] hover:text-[var(--fg)]"
+                      >
+                        <Icon size={14} className="shrink-0 text-[var(--fg-faint)]" />
+                        <span className="truncate">{entry.path.replace(/[\\/]+$/, "").split(/[\\/]/).pop() || entry.path}</span>
+                      </button>
+                    );
+                  })}
                 </div>
               );
             })}

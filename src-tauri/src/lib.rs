@@ -28,6 +28,7 @@ pub fn run() {
             commands::open_url,
             commands::open_with,
             commands::path_kind,
+            commands::initial_file,
         ])
         .setup(|app| {
             // 单窗口无缝启动：主窗口首帧即显示，画面为 index.html 内全屏启动遮罩

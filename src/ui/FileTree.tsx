@@ -8,7 +8,7 @@ import { ChevronRight, FilePlus2, FolderPlus, FileText, Folder, Pencil, Trash2, 
 import { useStore } from "../store";
 import * as backend from "../lib/backend";
 import { openDocByPath, exportDocByPath, exportDraftDoc } from "../lib/docActions";
-import { isTextEditable } from "../lib/fileTypes";
+import { isTextEditable, MARKDOWN_EXT } from "../lib/fileTypes";
 import { showUnsupportedFile } from "../lib/unsupportedFile";
 import { openFolder } from "../lib/workspace";
 import { notifyError } from "../lib/notify";
@@ -26,7 +26,6 @@ function joinPath(dir: string, name: string): string {
 }
 
 /** 目录树「仅显示 Markdown 与资源」时放行的扩展名（与 md-core 历史口径一致） */
-const MARKDOWN_EXT = ["md", "markdown", "mdx"];
 const ASSET_EXT = ["png", "jpg", "jpeg", "gif", "svg", "webp", "pdf"];
 
 /** 文件名是否为 Markdown 或资源文件（仅显示模式下的放行判定） */

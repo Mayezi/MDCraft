@@ -10,6 +10,16 @@ const TEXT_EDITABLE_EXT = [
   "sh", "bash", "ps1", "bat", "cmd",
 ];
 
+/** Markdown 扩展名 */
+export const MARKDOWN_EXT = ["md", "markdown", "mdx"];
+
+/** 是否是 Markdown 文档（目录树 / 最近打开用应用图标区分） */
+export function isMarkdownFile(name: string): boolean {
+  const dot = name.lastIndexOf(".");
+  if (dot <= 0) return false;
+  return MARKDOWN_EXT.includes(name.slice(dot + 1).toLowerCase());
+}
+
 /** 判断文件是否应用编辑器打开（是 → 纯文本编辑；否 → 交系统处理） */
 export function isTextEditable(name: string): boolean {
   const dot = name.lastIndexOf(".");

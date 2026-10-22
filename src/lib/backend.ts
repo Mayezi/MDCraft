@@ -294,6 +294,16 @@ export async function pathKind(path: string): Promise<"dir" | "file" | null> {
   }
 }
 
+/** 启动时由系统传入的文件路径（Windows 文件关联双击 .md 打开）；无则 null */
+export async function initialFilePath(): Promise<string | null> {
+  if (!isTauri) return null;
+  try {
+    return await invoke<string | null>("initial_file");
+  } catch {
+    return null;
+  }
+}
+
 // ---------- 本地资源（图片） ----------
 
 /** 保存图片到文档同级 assets/，返回 markdown 可用的相对路径（如 assets/xxx.png） */

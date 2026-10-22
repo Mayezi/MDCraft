@@ -14,6 +14,7 @@ import UnsupportedFileDialog from "./ui/UnsupportedFileDialog";
 import { useStore } from "./store";
 import * as backend from "./lib/backend";
 import { importDroppedPaths, importDroppedFiles } from "./lib/drop";
+import { openEditableFile } from "./lib/docActions";
 import { ensureWorkspaceFor, restoreFolder } from "./lib/workspace";
 import { checkForUpdatesOnStartup, closeUpdateDialog, useUpdateDialogOpen } from "./lib/updater";
 import { dismissBootSplash } from "./lib/boot-splash";
@@ -117,6 +118,20 @@ export default function App() {
   // 桌面模式：恢复上次打开的文件夹（可在设置中关闭；浏览器模式为 no-op）
   useEffect(() => {
     if (useStore.getState().settings.restoreFolder) void restoreFolder();
+  }, []);
+
+  // 桌面模式：系统经文件关联启动时（如双击 .md）会带上文件路径 → 直接打开该文件
+  useEffect(() => {
+    if (!backend.isTauri) return;
+    let alive = true;
+    void (async () => {
+      const path = await backend.initialFilePath();
+      if (!alive || !path) return;
+      await openEditableFile(path);
+    })();
+    return () => {
+      alive = false;
+    };
   }, []);
 
   // 桌面正式构建：启动后静默检查更新（延迟几秒，不与启动流程抢资源）；

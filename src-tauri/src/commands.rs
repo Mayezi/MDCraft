@@ -301,6 +301,15 @@ pub fn path_kind(path: String) -> Option<String> {
         .map(|m| if m.is_dir() { "dir" } else { "file" }.to_string())
 }
 
+/// 启动时由系统传入的文件路径（Windows 文件关联：双击 .md 会以 `MDCraft.exe "路径"` 启动）。
+/// 取命令行里第一个确实存在的文件；没有则返回 None（普通启动）。
+#[tauri::command]
+pub fn initial_file() -> Option<String> {
+    std::env::args()
+        .skip(1)
+        .find(|arg| !arg.starts_with('-') && Path::new(arg).is_file())
+}
+
 #[tauri::command]
 pub fn watch_dir(root: String, app: AppHandle, state: State<'_, WatchState>) -> Result<(), String> {
     let gen = state.generation.fetch_add(1, Ordering::SeqCst) + 1;
