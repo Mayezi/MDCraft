@@ -40,6 +40,8 @@ export default function RecentFiles({ onHeightChange }: { onHeightChange?: (heig
   }, [onHeightChange, entries.length]);
 
   const reopen = async (entry: RecentEntry) => {
+    // 点条目即收起列表：展开只是为了选一个目标，选完就该让位给主界面
+    setOpen(false);
     try {
       if (entry.kind === "folder") {
         if (!await openFolder(entry.path)) notifyError("打开失败：文件夹可能已移动或删除");
