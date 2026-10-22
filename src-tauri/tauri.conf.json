@@ -39,7 +39,7 @@
   },
   "bundle": {
     "active": true,
-    "targets": "all",
+    "targets": ["nsis", "dmg", "app", "appimage", "deb", "rpm"],
     "createUpdaterArtifacts": true,
     "publisher": "mdcraft",
     "windows": {

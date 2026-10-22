@@ -121,5 +121,5 @@ jobs:
           releaseDraft: true # 先出草稿，三端全部构建完成后再点 Publish
           prerelease: false
           args: ${{ matrix.args }}
-          # Windows 会同时产出 .msi 与 NSIS setup.exe；更新清单优先指向 NSIS
+          # Windows 只产出 NSIS setup.exe（MSI 的文件关联不带图标，故不再产出）；更新清单指向 NSIS
           updaterJsonPreferNsis: true
