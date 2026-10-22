@@ -35,19 +35,54 @@ export interface OutlineItem {
   line: number;
 }
 
-export type ThemeName = "github" | "newsprint" | "night" | "pixyll" | "whitey";
+/** 主题模式：浅色 / 深色 / 跟随系统 */
+export type ThemeMode = "light" | "dark" | "system";
 
-/** 主题元信息（菜单展示与暗色判定） */
-export const THEMES: { id: ThemeName; label: string; dark: boolean }[] = [
-  { id: "github", label: "GitHub", dark: false },
-  { id: "newsprint", label: "Newsprint", dark: false },
-  { id: "night", label: "Night", dark: true },
-  { id: "pixyll", label: "Pixyll", dark: false },
-  { id: "whitey", label: "Whitey", dark: false },
+/** 配色方案（复刻 dbx 的 13 套预设，色值见 styles/themes/palettes.css） */
+export type ThemePalette =
+  | "pearl"
+  | "mist"
+  | "graphite"
+  | "cobalt"
+  | "sage"
+  | "amber"
+  | "blush"
+  | "vscode"
+  | "idea"
+  | "xcode"
+  | "jetbrains"
+  | "cursor"
+  | "claude";
+
+/** 主题模式元信息（菜单展示） */
+export const THEME_MODES: { id: ThemeMode; label: string }[] = [
+  { id: "light", label: "浅色" },
+  { id: "dark", label: "深色" },
+  { id: "system", label: "跟随系统" },
+];
+
+/** 配色方案元信息：color 为色块预览色（菜单里显示在名称前） */
+export const THEME_PALETTES: { id: ThemePalette; label: string; color: string }[] = [
+  { id: "pearl", label: "洁白", color: "#ffffff" },
+  { id: "mist", label: "雾灰", color: "#e4eaf2" },
+  { id: "graphite", label: "钛灰", color: "#d8dce4" },
+  { id: "cobalt", label: "钴蓝", color: "#d8e6f7" },
+  { id: "sage", label: "青绿", color: "#dbe9e2" },
+  { id: "amber", label: "暖黄", color: "#f4e4b8" },
+  { id: "blush", label: "樱粉", color: "#f4d9e6" },
+  { id: "vscode", label: "VS Code", color: "#007acc" },
+  { id: "idea", label: "IDEA", color: "#4b6eaf" },
+  { id: "xcode", label: "Xcode", color: "#0a84ff" },
+  { id: "jetbrains", label: "JetBrains", color: "#7b61ff" },
+  { id: "cursor", label: "Cursor", color: "#6ba4ff" },
+  { id: "claude", label: "Claude Code", color: "#c47a50" },
 ];
 
 export interface Settings {
-  theme: ThemeName;
+  /** 主题模式（浅色 / 深色 / 跟随系统） */
+  themeMode: ThemeMode;
+  /** 配色方案 */
+  palette: ThemePalette;
   /** 全页源码模式（Ctrl+/，入口在左下角状态栏） */
   sourceMode: boolean;
   sidebarVisible: boolean;

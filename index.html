@@ -9,32 +9,32 @@
     <meta property="og:description" content="所见即所得 Markdown 编辑器，支持双模式、实时预览、公式渲染与多主题切换。" />
     <link rel="icon" type="image/png" href="/app-icon.png" />
     <script>
-      // 主题在首帧前应用：启动画面和后续界面都不会先闪一下默认主题
+      // 外观在首帧前应用：启动画面和后续界面都不会先闪一下默认配色
+      // 主题模式（浅色/深色/跟随系统）与配色方案是两个维度，与 dbx 一致
       (function () {
         try {
-          var raw = localStorage.getItem("mdcraft:theme");
-          var theme =
-            raw === "light" || raw === "github"
-              ? "github"
-              : raw === "dark" || raw === "night"
-                ? "night"
-                : raw === "newsprint" || raw === "pixyll" || raw === "whitey"
-                  ? raw
-                  : window.matchMedia("(prefers-color-scheme: dark)").matches
-                    ? "night"
-                    : "github";
-          document.documentElement.dataset.theme = theme;
+          var mode = localStorage.getItem("mdcraft:theme-mode");
+          var palette = localStorage.getItem("mdcraft:theme-palette");
+          if (mode !== "light" && mode !== "dark" && mode !== "system") {
+            mode = "system";
+          }
+          var dark =
+            mode === "dark" ||
+            (mode === "system" &&
+              window.matchMedia("(prefers-color-scheme: dark)").matches);
+          document.documentElement.dataset.themeMode = dark ? "dark" : "light";
+          document.documentElement.dataset.palette = palette || "pearl";
         } catch (e) {
-          document.documentElement.dataset.theme = "github";
+          document.documentElement.dataset.themeMode = "light";
+          document.documentElement.dataset.palette = "pearl";
         }
       })();
     </script>
     <style>
       /* ==========================================================================
-         1. 主题色板矩阵：精准对齐全部 5 套预设主题，彻底消除首帧切页色差
+         1. 启动遮罩配色：按深浅两套走（配色方案的色板在应用层接管）
          ========================================================================== */
-      :root,
-      html[data-theme="github"] {
+      :root {
         color-scheme: light;
         --boot-bg: #ffffff;
         --boot-bg-subtle: #f6f8fa;
@@ -54,7 +54,7 @@
         --boot-title-b: #4f46e5;
       }
 
-      html[data-theme="night"] {
+      html[data-theme-mode="dark"] {
         color-scheme: dark;
         --boot-bg: #1e2227; /* 比纯 #363b40 更深邃高级，同时与编辑器暗色自然过渡 */
         --boot-bg-subtle: #252a30;
@@ -72,66 +72,6 @@
         --boot-dot: rgba(255, 255, 255, 0.04);
         --boot-title-a: #60a5fa;
         --boot-title-b: #818cf8;
-      }
-
-      html[data-theme="newsprint"] {
-        color-scheme: light;
-        --boot-bg: #f3f2ee;
-        --boot-bg-subtle: #eae8e1;
-        --boot-fg: #1f0909;
-        --boot-fg-muted: #6e685f;
-        --boot-accent: #8b4513;
-        --boot-accent-glow: rgba(139, 69, 19, 0.1);
-        --boot-track: rgba(31, 9, 9, 0.09);
-        --boot-card-border: rgba(31, 9, 9, 0.08);
-        --boot-logo-bg: linear-gradient(180deg, #faf9f5 0%, #ebe9e2 100%);
-        --boot-logo-shadow:
-          0 2px 6px rgba(31, 9, 9, 0.06),
-          0 10px 24px -4px rgba(31, 9, 9, 0.08),
-          inset 0 1px 0 rgba(255, 255, 255, 0.7);
-        --boot-dot: rgba(31, 9, 9, 0.045);
-        --boot-title-a: #2563eb;
-        --boot-title-b: #4f46e5;
-      }
-
-      html[data-theme="pixyll"] {
-        color-scheme: light;
-        --boot-bg: #fafafa;
-        --boot-bg-subtle: #f0f0f0;
-        --boot-fg: #333333;
-        --boot-fg-muted: #777777;
-        --boot-accent: #007acc;
-        --boot-accent-glow: rgba(0, 122, 204, 0.11);
-        --boot-track: rgba(0, 0, 0, 0.08);
-        --boot-card-border: rgba(0, 0, 0, 0.07);
-        --boot-logo-bg: linear-gradient(180deg, #ffffff 0%, #f4f4f4 100%);
-        --boot-logo-shadow:
-          0 2px 5px rgba(0, 0, 0, 0.05),
-          0 10px 24px -4px rgba(0, 0, 0, 0.07),
-          inset 0 1px 0 #ffffff;
-        --boot-dot: rgba(0, 0, 0, 0.04);
-        --boot-title-a: #2563eb;
-        --boot-title-b: #4f46e5;
-      }
-
-      html[data-theme="whitey"] {
-        color-scheme: light;
-        --boot-bg: #fdfdfd;
-        --boot-bg-subtle: #f5f5f5;
-        --boot-fg: #222222;
-        --boot-fg-muted: #707070;
-        --boot-accent: #2b6cb0;
-        --boot-accent-glow: rgba(43, 108, 176, 0.11);
-        --boot-track: rgba(0, 0, 0, 0.08);
-        --boot-card-border: rgba(0, 0, 0, 0.07);
-        --boot-logo-bg: linear-gradient(180deg, #ffffff 0%, #f5f5f5 100%);
-        --boot-logo-shadow:
-          0 2px 5px rgba(0, 0, 0, 0.05),
-          0 10px 24px -4px rgba(0, 0, 0, 0.07),
-          inset 0 1px 0 #ffffff;
-        --boot-dot: rgba(0, 0, 0, 0.04);
-        --boot-title-a: #2563eb;
-        --boot-title-b: #4f46e5;
       }
 
       /* ==========================================================================

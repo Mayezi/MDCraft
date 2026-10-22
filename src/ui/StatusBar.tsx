@@ -3,6 +3,7 @@
 import { useStore } from "../store";
 import { PanelLeft, Code2 } from "lucide-react";
 import { APP_VERSION } from "../lib/version";
+import { THEME_PALETTES } from "../lib/types";
 
 export default function StatusBar() {
   const status = useStore((s) => s.status);
@@ -48,7 +49,7 @@ export default function StatusBar() {
           {active ? (active.path ? active.name : "草稿") : "-"}
         </span>
         <span className="h-3 w-px bg-[var(--border)]" />
-        <span>{settings.theme}</span>
+        <span>{THEME_PALETTES.find((p) => p.id === settings.palette)?.label ?? ""}</span>
         <span>v{APP_VERSION}</span>
       </div>
     </div>

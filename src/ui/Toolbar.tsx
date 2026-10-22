@@ -9,7 +9,8 @@ import * as backend from "../lib/backend";
 import { openDocByPath, saveActiveDoc } from "../lib/docActions";
 import { openFolder } from "../lib/workspace";
 import { getView } from "../editor/viewref";
-import { THEMES, type ThemeName } from "../lib/types";
+import { THEME_MODES, THEME_PALETTES } from "../lib/types";
+import { PaletteDot } from "./ThemeControls";
 import { APP_VERSION } from "../lib/version";
 import { WELCOME } from "../lib/samples";
 import SettingsDialog from "./SettingsDialog";
@@ -27,6 +28,8 @@ interface MItem {
   checked?: boolean;
   disabled?: boolean;
   sep?: boolean;
+  /** 色块（配色主题项：名称前显示色点） */
+  color?: string;
   items?: MItem[];
 }
 
@@ -129,11 +132,20 @@ export default function Toolbar() {
       icon: <Eye size={13} />,
       build: () => [
         {
-          label: "主题",
-          items: THEMES.map((t) => ({
-            label: t.label,
-            checked: settings.theme === t.id,
-            run: () => setSettings({ theme: t.id as ThemeName }),
+          label: "主题模式",
+          items: THEME_MODES.map((mode) => ({
+            label: mode.label,
+            checked: settings.themeMode === mode.id,
+            run: () => setSettings({ themeMode: mode.id }),
+          })),
+        },
+        {
+          label: "配色主题",
+          items: THEME_PALETTES.map((palette) => ({
+            label: palette.label,
+            color: palette.color,
+            checked: settings.palette === palette.id,
+            run: () => setSettings({ palette: palette.id }),
           })),
         },
         { sep: true },
@@ -222,6 +234,7 @@ export default function Toolbar() {
             {item.checked && <span className="shrink-0 text-[var(--accent)]">
               {item.checked && <Check size={13} strokeWidth={2.5} />}
             </span>}
+            {item.color && <PaletteDot color={item.color} />}
             <span className="flex-1 whitespace-nowrap">{item.label}</span>
             {item.hint && (
               <span className="shrink-0 text-[11px] tabular-nums text-[var(--fg-faint)]">{item.hint}</span>
@@ -323,18 +336,39 @@ className="my-1 flex h-8 w-7 cursor-pointer items-center justify-center rounded-
             </button>
           </Tooltip>
           {themeMenuOpen && (
-            <div className="ui-pop ui-pop-right absolute right-0 top-full z-50 mt-1 min-w-[170px] rounded-lg border border-[var(--border)] bg-[var(--bg)] p-1 shadow-[0_8px_24px_rgba(0,0,0,0.2)]">
-              {THEMES.map((theme) => (
+            <div className="ui-pop ui-pop-right absolute right-0 top-full z-50 mt-1 max-h-[70vh] w-[196px] overflow-y-auto rounded-lg border border-[var(--border)] bg-[var(--bg)] p-1 shadow-[0_8px_24px_rgba(0,0,0,0.2)]">
+              <div className="px-2 py-1 text-[11px] text-[var(--fg-faint)]">主题模式</div>
+              {THEME_MODES.map((mode) => (
                 <button
-                  key={theme.id}
+                  key={mode.id}
                   onClick={() => {
-                    setSettings({ theme: theme.id });
+                    setSettings({ themeMode: mode.id });
                     setThemeMenuOpen(false);
                   }}
-                  className="flex min-h-[30px] w-full cursor-pointer items-center gap-2 rounded-md px-2 text-left text-[13px] text-[var(--fg)] hover:bg-[var(--bg-hover)]"
+                  className="flex min-h-[28px] w-full cursor-pointer items-center gap-2 rounded-md px-2 text-left text-[13px] text-[var(--fg)] hover:bg-[var(--bg-hover)]"
                 >
-                  <span className="flex-1">{theme.label}</span>
-                  {settings.theme === theme.id && <Check size={14} className="text-[var(--accent)]" />}
+                  <span className="flex-1">{mode.label}</span>
+                  {settings.themeMode === mode.id && (
+                    <Check size={14} className="text-[var(--accent)]" />
+                  )}
+                </button>
+              ))}
+              <div className="mx-2 my-1 h-px bg-[var(--border)]" />
+              <div className="px-2 py-1 text-[11px] text-[var(--fg-faint)]">配色主题</div>
+              {THEME_PALETTES.map((palette) => (
+                <button
+                  key={palette.id}
+                  onClick={() => {
+                    setSettings({ palette: palette.id });
+                    setThemeMenuOpen(false);
+                  }}
+                  className="flex min-h-[28px] w-full cursor-pointer items-center gap-2 rounded-md px-2 text-left text-[13px] text-[var(--fg)] hover:bg-[var(--bg-hover)]"
+                >
+                  <PaletteDot color={palette.color} />
+                  <span className="flex-1">{palette.label}</span>
+                  {settings.palette === palette.id && (
+                    <Check size={14} className="text-[var(--accent)]" />
+                  )}
                 </button>
               ))}
             </div>

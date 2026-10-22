@@ -1,5 +1,20 @@
 import { create } from "zustand";
-import { DEFAULT_PREFERENCES, type DocFile, type FileNode, type OutlineItem, type Settings, type ThemeName, type RecentEntry } from "./lib/types";
+import {
+  DEFAULT_PREFERENCES,
+  type DocFile,
+  type FileNode,
+  type OutlineItem,
+  type Settings,
+  type ThemeMode,
+  type ThemePalette,
+  type RecentEntry,
+} from "./lib/types";
+import {
+  THEME_MODE_KEY,
+  THEME_PALETTE_KEY,
+  normalizeThemeMode,
+  normalizeThemePalette,
+} from "./lib/theme";
 import { scheduleSettingsFileSave } from "./lib/settingsFile";
 import type { EditorState } from "@codemirror/state";
 
@@ -61,14 +76,19 @@ interface AppStore {
   setLocateRequest: (path: string | null) => void;
 }
 
-const savedTheme = ((): ThemeName => {
-  const raw = localStorage.getItem("mdcraft:theme");
-  // 旧版 light/dark 值迁移
-  if (raw === "light" || raw === "github") return "github";
-  if (raw === "dark" || raw === "night") return "night";
-  if (raw === "newsprint" || raw === "pixyll" || raw === "whitey") return raw;
-  return matchMedia("(prefers-color-scheme: dark)").matches ? "night" : "github";
+/** 主题模式：浅色 / 深色 / 跟随系统；旧版 mdcraft:theme（night 等）在此迁移 */
+const savedThemeMode = ((): ThemeMode => {
+  const raw = localStorage.getItem(THEME_MODE_KEY);
+  if (raw) return normalizeThemeMode(raw);
+  const legacy = localStorage.getItem("mdcraft:theme");
+  if (!legacy) return "system";
+  localStorage.removeItem("mdcraft:theme");
+  return legacy === "dark" || legacy === "night" ? "dark" : "light";
 })();
+
+/** 配色方案（复刻 dbx 的 13 套预设） */
+const savedPalette = ((): ThemePalette =>
+  normalizeThemePalette(localStorage.getItem(THEME_PALETTE_KEY)))();
 
 const savedRecentEntries = ((): RecentEntry[] => {
   try {
@@ -189,7 +209,8 @@ export const useStore = create<AppStore>((set, get) => {
     docs: boot,
     activeDocId: activeId,
     settings: {
-      theme: savedTheme,
+      themeMode: savedThemeMode,
+      palette: savedPalette,
       sourceMode: false,
       sidebarVisible: true,
       sidebarTab: "files",
@@ -277,7 +298,10 @@ export const useStore = create<AppStore>((set, get) => {
     setSettings: (patch) =>
       set((s) => {
         const settings = { ...s.settings, ...patch };
-        if (patch.theme) localStorage.setItem("mdcraft:theme", patch.theme);
+        if (patch.themeMode !== undefined)
+          localStorage.setItem(THEME_MODE_KEY, patch.themeMode);
+        if (patch.palette !== undefined)
+          localStorage.setItem(THEME_PALETTE_KEY, patch.palette);
         if (patch.sourceMode !== undefined)
           localStorage.setItem("mdcraft:source-mode", patch.sourceMode ? "1" : "0");
         if (PERSISTED_KEYS.some((key) => patch[key] !== undefined)) persistPreferences(settings);

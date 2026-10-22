@@ -1,0 +1,82 @@
+/* ============================================================
+   基础层 —— 排版 + 由配色方案推导的语义变量。
+
+   外观拆成两个独立维度（对齐 dbx）：
+   - 主题模式：浅色 / 深色 / 跟随系统 → 写在 <html data-theme-mode>
+   - 配色方案：13 套预设 → 写在 <html data-palette>（见 palettes.css）
+
+   palettes.css 只提供原始色（--bg / --fg / --accent / --border …），
+   其余语义变量在这里绑定到它们，配色切换时自动跟随，无需逐套重复。
+   语法高亮按深浅两套固定（与配色无关），沿用 GitHub / Night 的取值。
+   ============================================================ */
+
+:root {
+  color-scheme: light;
+
+  /* ---------- 排版（唯一一套，与配色无关） ---------- */
+  --editor-font:
+    ui-sans-serif, -apple-system, "Segoe UI", "PingFang SC", "Microsoft YaHei",
+    "Helvetica Neue", Arial, "Segoe UI Emoji", sans-serif;
+  --editor-fs: 16px;
+  --editor-lh: 1.75;
+
+  --h1-fs: 2.25em;
+  --h2-fs: 1.75em;
+  --h3-fs: 1.5em;
+  --h4-fs: 1.25em;
+  --code-radius: 6px;
+
+  /* ---------- 由原始色推导的语义变量 ---------- */
+  --bold-color: var(--fg-strong);
+  --heading-color: var(--fg-strong);
+  --fg-faint: color-mix(in srgb, var(--fg-soft) 76%, var(--bg));
+  --accent-soft: color-mix(in srgb, var(--accent) 12%, transparent);
+  --selection: color-mix(in srgb, var(--accent) 20%, transparent);
+  --link-color: var(--accent);
+
+  --code-bg: var(--bg-soft);
+  --code-border: var(--border);
+  --inline-code-bg: var(--bg-soft);
+  --inline-code-color: #950752;
+  --inline-code-border: var(--border);
+
+  --quote-border: var(--border);
+  --quote-color: var(--fg-soft);
+
+  --table-border: var(--border);
+  --table-head-bg: var(--bg-soft);
+  --table-zebra: color-mix(in srgb, var(--bg-soft) 60%, transparent);
+
+  /* ---------- 语法高亮（浅色） ---------- */
+  --syn-kw: #cf222e;
+  --syn-str: #0a3069;
+  --syn-num: #0550ae;
+  --syn-com: #6e7781;
+  --syn-fn: #8250df;
+  --syn-type: #953800;
+  --syn-prop: #0550ae;
+  --syn-op: #0550ae;
+  --syn-var: #24292f;
+  --syn-mark: #818b98;
+  --syn-code: #0550ae;
+}
+
+/* 深色模式：语法高亮换深色版；配色变量由 palettes.css 的
+   html[data-palette="…"][data-theme-mode="dark"] 提供 */
+[data-theme-mode="dark"] {
+  color-scheme: dark;
+
+  --inline-code-color: #9ecbff;
+
+  --syn-kw: #ff7b72;
+  --syn-str: #a5d6ff;
+  --syn-num: #79c0ff;
+  --syn-com: #7b848c;
+  --syn-fn: #d2a8ff;
+  --syn-type: #ffa657;
+  --syn-prop: #79c0ff;
+  --syn-op: #79c0ff;
+  --syn-var: #e1e4e8;
+  --syn-mark: #646b73;
+  --syn-code: #79c0ff;
+}

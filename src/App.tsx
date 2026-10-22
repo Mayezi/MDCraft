@@ -13,6 +13,7 @@ import { importDroppedPaths, importDroppedFiles } from "./lib/drop";
 import { ensureWorkspaceFor, restoreFolder } from "./lib/workspace";
 import { checkForUpdatesOnStartup } from "./lib/updater";
 import { dismissBootSplash } from "./lib/boot-splash";
+import { applyThemeAttributes, onSystemThemeChange } from "./lib/theme";
 import { getView } from "./editor/viewref";
 import { saveActiveDoc, saveAllDirty } from "./lib/docActions";
 import type { DocFile } from "./lib/types";
@@ -24,7 +25,8 @@ const EditorPane = lazy(() => import("./ui/EditorPane"));
 export default function App() {
   const settings = useStore((s) => s.settings);
   const docCount = useStore((s) => s.docs.length);
-  const theme = settings.theme;
+  const themeMode = settings.themeMode;
+  const palette = settings.palette;
   const sidebarVisible = settings.sidebarVisible;
   const sidebarWidth = settings.sidebarWidth;
   /** 活动文档的磁盘路径（草稿为 null）；tab 切换时驱动目录树跟随 */
@@ -33,7 +35,7 @@ export default function App() {
   );
   // 初值 = 左侧「最近打开」收起块实测高度（防首帧闪动），挂载后被 RecentFiles 实测覆盖
   const [recentHeight, setRecentHeight] = useState(39);
-  const prevTheme = useRef(theme);
+  const prevAppearance = useRef("");
   /** 拖放导入：文件/文件夹拖入窗口时的全屏提示 */
   const [dragging, setDragging] = useState(false);
   /**
@@ -72,13 +74,13 @@ export default function App() {
     };
   }, []);
 
-  // 主题切换：支持 View Transition 时整页交叉淡变，否则直接切换
+  // 主题模式 + 配色方案：支持 View Transition 时整页交叉淡变，否则直接切换
   useEffect(() => {
-    const root = document.documentElement;
-    const changed = prevTheme.current !== theme;
-    prevTheme.current = theme;
+    const changed = prevAppearance.current !== `${themeMode}:${palette}`;
+    prevAppearance.current = `${themeMode}:${palette}`;
+    const apply = () => applyThemeAttributes(themeMode, palette);
     if (!changed) {
-      root.dataset.theme = theme;
+      apply();
       return;
     }
     const doc = document as Document & {
@@ -88,13 +90,17 @@ export default function App() {
       typeof doc.startViewTransition === "function" &&
       !window.matchMedia("(prefers-reduced-motion: reduce)").matches
     ) {
-      doc.startViewTransition(() => {
-        root.dataset.theme = theme;
-      });
+      doc.startViewTransition(apply);
     } else {
-      root.dataset.theme = theme;
+      apply();
     }
-  }, [theme]);
+  }, [themeMode, palette]);
+
+  // 跟随系统：系统深浅切换时同步刷新外观
+  useEffect(() => {
+    if (themeMode !== "system") return;
+    return onSystemThemeChange(() => applyThemeAttributes(themeMode, palette));
+  }, [themeMode, palette]);
 
   // 用户自定义排版：写内联 CSS 变量覆盖主题默认值；null 表示跟随主题
   useEffect(() => {

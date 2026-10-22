@@ -138,7 +138,7 @@ html[data-sidebar-resizing] .sidebar-shell {
     transparent
   );
 }
-[data-theme="night"] .ambient-glow {
+[data-theme-mode="dark"] .ambient-glow {
   background: linear-gradient(
     to bottom,
     rgba(59, 130, 246, 0.07),
@@ -160,7 +160,7 @@ html[data-sidebar-resizing] .sidebar-shell {
   line-height: 1;
   box-shadow: 0 2px 0 0 rgba(0, 0, 0, 0.08), inset 0 1px 0 0 rgba(255, 255, 255, 0.8);
 }
-[data-theme="night"] .kbd-key {
+[data-theme-mode="dark"] .kbd-key {
   box-shadow: 0 2px 0 0 rgba(0, 0, 0, 0.5), inset 0 1px 0 0 rgba(255, 255, 255, 0.1);
 }
 
@@ -266,8 +266,8 @@ html[data-sidebar-resizing] .sidebar-shell {
 
 /* ============================================================
    MDCraft 基础样式 —— 仅结构，颜色/排版全部走主题变量。
-   主题文件：themes/{github,newsprint,night,pixyll,whitey}.css
-   （默认变量与 GitHub 主题一致，由 themes/github.css 提供）
+   外观分两层：主题模式（data-theme-mode）+ 配色方案（data-palette）
+   主题文件：themes/base.css（排版 + 语义变量推导）、themes/palettes.css（13 套配色）
    ============================================================ */
 
 html,
@@ -380,7 +380,7 @@ body,
   background: rgba(0, 0, 0, 0.3);
   animation: drop-overlay-in var(--dur-2) var(--ease-smooth);
 }
-html[data-theme="night"] .drop-overlay {
+html[data-theme-mode="dark"] .drop-overlay {
   background: rgba(0, 0, 0, 0.48);
 }
 .drop-card {

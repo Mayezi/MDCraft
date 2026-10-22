@@ -1,6 +1,6 @@
 // 右侧 minimap（@batchfy/codemirror-minimap）的装配与主题同步。
-// 扩展自身只在 .cm-editor 的 class 变化时重测字体/颜色，而 MDCraft 的主题、
-// 字号、行高走 html 上的 data-theme / CSS 变量，因此需要主动触发一次重绘。
+// 扩展自身只在 .cm-editor 的 class 变化时重测字体/颜色，而 MDCraft 的配色、
+// 字号、行高走 html 上的 data-theme-mode / data-palette / CSS 变量，因此需要主动触发一次重绘。
 
 import { EditorView, ViewPlugin } from "@codemirror/view";
 import { showMinimap } from "@batchfy/codemirror-minimap";
@@ -16,7 +16,7 @@ const refreshOnThemeChange = ViewPlugin.fromClass(
       this.observer = new MutationObserver(() => this.refresh());
       this.observer.observe(document.documentElement, {
         attributes: true,
-        attributeFilter: ["data-theme", "style"],
+        attributeFilter: ["data-theme-mode", "data-palette", "style"],
       });
     }
 

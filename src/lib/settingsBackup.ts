@@ -1,6 +1,7 @@
 // 设置配置的 JSON 备份格式：只包含用户偏好，不包含文档、最近文件等数据。
 
-import { THEMES, type Settings } from "./types";
+import { THEME_MODES, THEME_PALETTES, type Settings } from "./types";
+import { normalizeThemeMode, normalizeThemePalette } from "./theme";
 
 const BACKUP_VERSION = 1;
 const SIDEBAR_TABS = ["files", "outline"] as const;
@@ -15,7 +16,8 @@ export interface SettingsBackup {
 /** 提取需要持久化的设置字段（排除未来可能出现的会话级字段） */
 export function settingsSnapshot(settings: Settings): Settings {
   return {
-    theme: settings.theme,
+    themeMode: settings.themeMode,
+    palette: settings.palette,
     sourceMode: settings.sourceMode,
     sidebarVisible: settings.sidebarVisible,
     sidebarTab: settings.sidebarTab,
@@ -75,8 +77,20 @@ export function parseSettingsBackup(raw: string): Partial<Settings> {
 
   const patch: Partial<Settings> = {};
 
-  const theme = THEMES.find((item) => item.id === data.theme);
-  if (theme) patch.theme = theme.id;
+  // 外观：主题模式 + 配色方案；旧配置里的 theme 字段在此迁移
+  const themeMode = THEME_MODES.find((item) => item.id === data.themeMode)?.id;
+  const palette = THEME_PALETTES.find((item) => item.id === data.palette)?.id;
+  if (themeMode) patch.themeMode = themeMode;
+  if (palette) patch.palette = palette;
+  if (!themeMode && typeof data.theme === "string") {
+    // 旧主题名：night/dark 走深色，其余走浅色；配色统一回落洁白
+    patch.themeMode = data.theme === "night" || data.theme === "dark" ? "dark" : "light";
+    patch.palette = "pearl";
+  }
+  if (data.themeMode !== undefined && themeMode === undefined)
+    patch.themeMode = normalizeThemeMode(data.themeMode);
+  if (data.palette !== undefined && palette === undefined)
+    patch.palette = normalizeThemePalette(data.palette);
 
   if (typeof data.sourceMode === "boolean") patch.sourceMode = data.sourceMode;
   if (typeof data.sidebarVisible === "boolean") patch.sidebarVisible = data.sidebarVisible;

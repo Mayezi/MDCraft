@@ -7,16 +7,10 @@ import { useStore } from "../store";
 import * as backend from "../lib/backend";
 import { buildSettingsBackup, parseSettingsBackup } from "../lib/settingsBackup";
 import { APP_VERSION } from "../lib/version";
-import type { ThemeName } from "../lib/types";
+import { ThemeModeSwitch, ThemePaletteSelect } from "./ThemeControls";
 
-/** 主题 CSS 里的默认字号/行高在这里镜像一份，用于「跟随主题」时的显示值 */
-const THEME_METRICS: Record<ThemeName, { fs: number; lh: number }> = {
-  github: { fs: 16, lh: 1.75 },
-  newsprint: { fs: 16, lh: 1.65 },
-  night: { fs: 16, lh: 1.8 },
-  pixyll: { fs: 16, lh: 1.8 },
-  whitey: { fs: 19, lh: 1.68 },
-};
+/** 主题默认字号/行高（唯一一套排版，这里镜像一份用于「跟随主题」时的显示值） */
+const BASE_METRICS = { fs: 16, lh: 1.75 };
 
 const WIDTH_PRESETS = [
   { label: "跟随主题", value: null },
@@ -139,9 +133,8 @@ export default function SettingsDialog({ onClose }: { onClose: () => void }) {
     return () => window.removeEventListener("keydown", onKey, true);
   }, [onClose]);
 
-  const metrics = THEME_METRICS[settings.theme];
-  const fontSize = settings.fontSize ?? metrics.fs;
-  const lineHeight = settings.lineHeight ?? metrics.lh;
+  const fontSize = settings.fontSize ?? BASE_METRICS.fs;
+  const lineHeight = settings.lineHeight ?? BASE_METRICS.lh;
   const followingTheme =
     settings.fontSize === null && settings.lineHeight === null && settings.contentWidth === null;
 
@@ -229,6 +222,13 @@ export default function SettingsDialog({ onClose }: { onClose: () => void }) {
               </button>
             }
           >
+            <SettingRow title="主题模式" description="浅色 / 深色 / 跟随系统">
+              <ThemeModeSwitch />
+            </SettingRow>
+            <SettingRow title="配色主题" description="界面与正文的配色方案（与主题模式相互独立）">
+              <ThemePaletteSelect />
+            </SettingRow>
+
             <SettingRow title="正文字号" description="仅影响编辑区；跟随主题时使用主题默认字号">
               <div className="w-52">
                 <div className="mb-0.5 text-right text-[11.5px] tabular-nums text-[var(--fg-soft)]">

@@ -27,17 +27,15 @@ if (typeof window !== "undefined") {
 import "./styles/base.css";
 import "./styles/editor.css";
 import "./styles/slash-icons.css";
-import "./styles/themes/github.css";
-import "./styles/themes/newsprint.css";
-import "./styles/themes/night.css";
-import "./styles/themes/pixyll.css";
-import "./styles/themes/whitey.css";
+import "./styles/themes/base.css";
+import "./styles/themes/palettes.css";
 import "katex/dist/katex.min.css";
+import { applyThemeAttributes, THEME_MODE_KEY, THEME_PALETTE_KEY } from "./lib/theme";
 
 /** 首帧前应用持久化外观，避免主题/自定义字号在 React effect 之前闪一下 */
 function applyAppearance(settings: Settings) {
+  applyThemeAttributes(settings.themeMode, settings.palette);
   const root = document.documentElement;
-  root.dataset.theme = settings.theme;
   if (settings.fontSize != null) root.style.setProperty("--editor-fs", `${settings.fontSize}px`);
   if (settings.lineHeight != null) root.style.setProperty("--editor-lh", String(settings.lineHeight));
   if (settings.contentWidth != null)
@@ -52,8 +50,9 @@ async function bootstrap() {
     if (loaded.status === "loaded") {
       const settings = { ...useStore.getState().settings, ...loaded.settings };
       useStore.setState({ settings });
-      // index.html 启动画面的主题脚本只能读 localStorage，这里同步一份主题缓存
-      localStorage.setItem("mdcraft:theme", settings.theme);
+      // index.html 启动画面的主题脚本只能读 localStorage，这里同步一份外观缓存
+      localStorage.setItem(THEME_MODE_KEY, settings.themeMode);
+      localStorage.setItem(THEME_PALETTE_KEY, settings.palette);
     } else if (loaded.status === "missing") {
       await saveSettingsFile(useStore.getState().settings);
     }
