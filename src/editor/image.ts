@@ -8,6 +8,7 @@
 import { EditorView } from "@codemirror/view";
 import type { Extension } from "@codemirror/state";
 import * as backend from "../lib/backend";
+import { notifyError } from "../lib/notify";
 
 /** 当前活动文档的磁盘路径（null = 未保存草稿）——渲染相对图片路径时作为解析基准 */
 let activeDocPath: string | null = null;
@@ -117,7 +118,7 @@ async function saveImages(
     insertBlock(view, links.join("\n"), pos);
   } catch (e) {
     console.error("图片保存失败:", e);
-    window.alert(`图片保存失败：${e instanceof Error ? e.message : String(e)}`);
+    notifyError(`图片保存失败：${e instanceof Error ? e.message : String(e)}`);
   }
 }
 

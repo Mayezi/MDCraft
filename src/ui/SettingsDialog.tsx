@@ -19,6 +19,7 @@ import * as backend from "../lib/backend";
 import { buildSettingsBackup, parseSettingsBackup } from "../lib/settingsBackup";
 import { matchSettingsRows, type SettingsSearchable } from "../lib/settingsSearch";
 import { useReleaseNotes, type ReleaseNotesState } from "../lib/releaseNotes";
+import { notifyError } from "../lib/notify";
 import { APP_VERSION } from "../lib/version";
 import {
   checkUpdate,
@@ -555,7 +556,7 @@ export default function SettingsDialog({
             onClick={() =>
               void backend
                 .showInFolder(configPath)
-                .catch((error: unknown) => alert(`打开失败：${String(error)}`))
+                .catch((error: unknown) => notifyError(`打开失败：${String(error)}`))
             }
           >
             在文件夹中显示

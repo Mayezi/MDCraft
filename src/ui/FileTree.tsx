@@ -9,6 +9,7 @@ import { useStore } from "../store";
 import * as backend from "../lib/backend";
 import { openDocByPath, exportDocByPath, exportDraftDoc } from "../lib/docActions";
 import { openFolder } from "../lib/workspace";
+import { notifyError } from "../lib/notify";
 import RecentFiles from "./RecentFiles";
 import ExportResultDialog from "./ExportResultDialog";
 import ConfirmDialog from "./ConfirmDialog";
@@ -508,7 +509,7 @@ onClick={() => {
         }
         // 编辑器不认的文件（exe / pdf / 无后缀…）：拉起系统「选择应用」框，
         // 由用户自己选用什么程序打开（不擅自用默认程序执行）
-        backend.openWith(node.path).catch((e: unknown) => alert(`打开失败：${e}`));
+        backend.openWith(node.path).catch((e: unknown) => notifyError(`打开失败：${e}`));
       }}
       onDoubleClick={() => {
         // 双击重命名只对文本文件生效：非文本文件的单击已拉起系统选择框，
@@ -558,7 +559,7 @@ async function applyEdit(
     else await backend.createDir(target);
     refresh();
   } catch (e) {
-    alert(`创建失败：${e}`);
+    notifyError(`创建失败：${e}`);
     return;
   }
   // 新建的 md 文件直接打开
@@ -590,7 +591,7 @@ async function applyRename(node: FileNode, name: string, refresh: () => void): P
     }
     refresh();
   } catch (e) {
-    alert(`重命名失败：${e}`);
+    notifyError(`重命名失败：${e}`);
   }
 }
 
@@ -1047,14 +1048,14 @@ export default function FileTree({ onRecentHeightChange }: { onRecentHeightChang
                 const out = await exportDocByPath(n.path);
                 if (out) setExportedPath(out);
               } catch (e) {
-                alert(`导出失败：${e}`);
+                notifyError(`导出失败：${e}`);
               }
             })();
           }}
           onReveal={(m) => {
             setMenu(null);
             if (!m.node) return;
-            backend.showInFolder(m.node.path).catch((e: unknown) => alert(`打开失败：${e}`));
+            backend.showInFolder(m.node.path).catch((e: unknown) => notifyError(`打开失败：${e}`));
           }}
           onDelete={(m) => {
             setMenu(null);
@@ -1111,11 +1112,11 @@ export default function FileTree({ onRecentHeightChange }: { onRecentHeightChang
         <ExportResultDialog
           path={exportedPath}
           onOpen={() => {
-            backend.openPath(exportedPath).catch((e: unknown) => alert(`打开失败：${e}`));
+            backend.openPath(exportedPath).catch((e: unknown) => notifyError(`打开失败：${e}`));
             setExportedPath(null);
           }}
           onReveal={() => {
-            backend.showInFolder(exportedPath).catch((e: unknown) => alert(`打开失败：${e}`));
+            backend.showInFolder(exportedPath).catch((e: unknown) => notifyError(`打开失败：${e}`));
             setExportedPath(null);
           }}
           onClose={() => setExportedPath(null)}

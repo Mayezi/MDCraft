@@ -9,6 +9,7 @@ import DropOverlay from "./ui/DropOverlay";
 import CloseConfirmDialog from "./ui/CloseConfirmDialog";
 import UpdateNotifier from "./ui/UpdateNotifier";
 import UpdateDialog from "./ui/UpdateDialog";
+import NotifyHost from "./ui/NotifyHost";
 import { useStore } from "./store";
 import * as backend from "./lib/backend";
 import { importDroppedPaths, importDroppedFiles } from "./lib/drop";
@@ -337,6 +338,7 @@ export default function App() {
         </div>
       </div>
       {dragging && <DropOverlay />}
+      <NotifyHost />
       <UpdateNotifier />
       <UpdateDialog open={updateDialogOpen} onClose={closeUpdateDialog} />
       {closeDocs.length > 0 && (

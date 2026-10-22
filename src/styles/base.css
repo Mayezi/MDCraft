@@ -31,6 +31,33 @@
     opacity: 1;
   }
 }
+/* 轻提示入场：右上角提示栈从右侧滑入，右下角更新提示从下方滑入 */
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateX(14px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes toast-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.toast-in {
+  animation: toast-in var(--dur-3) var(--ease-smooth);
+}
+.toast-in-up {
+  animation: toast-in-up var(--dur-3) var(--ease-smooth);
+}
 @keyframes panel-in-right {
   from {
     opacity: 0;

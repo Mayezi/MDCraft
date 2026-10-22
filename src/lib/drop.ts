@@ -6,6 +6,7 @@ import { useStore } from "../store";
 import * as backend from "./backend";
 import { openDocByPath } from "./docActions";
 import { openFolder } from "./workspace";
+import { notify, notifyError } from "./notify";
 
 /** Markdown 扩展名判断（.md / .markdown / .mkd / .mdown） */
 export function isMarkdownPath(path: string): boolean {
@@ -33,7 +34,7 @@ export async function importDroppedPaths(paths: string[]): Promise<void> {
   }
   if (unsupported.length) {
     const names = unsupported.map((p) => p.split(/[\\/]/).pop()).join("、");
-    alert(`以下文件不是 Markdown，已忽略：${names}`);
+    notify(`以下文件不是 Markdown，已忽略：${names}`);
   }
 }
 
@@ -41,13 +42,13 @@ export async function importDroppedPaths(paths: string[]): Promise<void> {
 export function importDroppedFiles(files: File[]): void {
   const md = files.filter((f) => isMarkdownPath(f.name));
   if (!md.length) {
-    alert("仅支持 Markdown 文件（.md / .markdown）");
+    notify("仅支持 Markdown 文件（.md / .markdown）");
     return;
   }
   for (const file of md) {
     file
       .text()
       .then((text) => useStore.getState().openContent(file.name, null, text))
-      .catch(() => alert(`读取 ${file.name} 失败`));
+      .catch(() => notifyError(`读取 ${file.name} 失败`));
   }
 }

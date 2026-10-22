@@ -64,7 +64,7 @@ export default function UpdateDialog({ open, onClose }: UpdateDialogProps) {
       <div
         role="dialog"
         aria-modal="true"
-        className="flex max-h-[88vh] w-full max-w-lg flex-col overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--bg)] text-[var(--fg)] shadow-2xl animate-in fade-in zoom-in-95 duration-200"
+        className="modal-card flex max-h-[88vh] w-full max-w-lg flex-col overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--bg)] text-[var(--fg)] shadow-2xl"
       >
         {/* 顶部标题栏 */}
         <div className="flex items-center justify-between border-b border-[var(--border)] bg-[var(--bg-soft)] px-5 py-3.5">

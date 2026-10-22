@@ -43,7 +43,7 @@ export default function UpdateNotifier() {
     <div
       role="status"
       aria-live="polite"
-      className="pointer-events-none fixed bottom-11 right-4 z-40 w-[300px] animate-in fade-in slide-in-from-bottom-2 duration-200"
+      className="toast-in-up pointer-events-none fixed bottom-11 right-4 z-40 w-[300px]"
     >
       <div className="pointer-events-auto overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--bg)] shadow-[0_10px_30px_rgba(0,0,0,0.18)]">
         {/* 新版本提示 */}

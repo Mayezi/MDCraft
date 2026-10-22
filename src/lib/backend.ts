@@ -6,6 +6,7 @@ import { SAMPLE_DOCS } from "./samples";
 // 静态导入：ImageWidget 渲染是同步的，需要同步可用的路径→URL 转换。
 // 该模块顶层无副作用（仅 convertFileSrc 调用时才读 __TAURI_INTERNALS__），浏览器模式导入安全。
 import { convertFileSrc, invoke } from "@tauri-apps/api/core";
+import { notify } from "./notify";
 
 export const isTauri = typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
 
@@ -123,7 +124,7 @@ export async function pickOpenFolder(defaultPath?: string): Promise<string | nul
     const res = await open({ directory: true, multiple: false, defaultPath });
     return typeof res === "string" ? res : null;
   }
-  alert("浏览器模式不支持打开文件夹，请使用桌面版（pnpm tauri dev）");
+  notify("浏览器模式不支持打开文件夹，请使用桌面版（pnpm tauri dev）");
   return null;
 }
 

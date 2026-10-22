@@ -5,6 +5,7 @@ import { editorStates, useStore } from "../store";
 import { getView } from "../editor/viewref";
 import * as backend from "./backend";
 import { ensureWorkspaceFor } from "./workspace";
+import { notifyError } from "./notify";
 
 /** 取当前活动文档的编辑器状态（并把视图状态写回状态池） */
 export function currentDocState(): EditorState | null {
@@ -42,7 +43,7 @@ export async function saveDocById(docId: string, saveAs = false): Promise<boolea
     try {
       picked = await backend.pickSaveFile(doc.name);
     } catch (error) {
-      alert(`打开保存对话框失败：${error}`);
+      notifyError(`打开保存对话框失败：${error}`);
       return false;
     }
     if (!picked) return false;
@@ -60,7 +61,7 @@ export async function saveDocById(docId: string, saveAs = false): Promise<boolea
   try {
     await backend.writeFileText(path, content);
   } catch (error) {
-    alert(`保存失败：${error}`);
+    notifyError(`保存失败：${error}`);
     return false;
   }
   if (backend.isTauri) useStore.getState().addRecentEntry(path, "file");

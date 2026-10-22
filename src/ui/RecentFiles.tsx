@@ -6,6 +6,7 @@ import * as backend from "../lib/backend";
 import { useStore } from "../store";
 import { openDocByPath } from "../lib/docActions";
 import { openFolder } from "../lib/workspace";
+import { notifyError } from "../lib/notify";
 import type { RecentEntry } from "../lib/types";
 
 export default function RecentFiles({ onHeightChange }: { onHeightChange?: (height: number) => void }) {
@@ -41,12 +42,12 @@ export default function RecentFiles({ onHeightChange }: { onHeightChange?: (heig
   const reopen = async (entry: RecentEntry) => {
     try {
       if (entry.kind === "folder") {
-        if (!await openFolder(entry.path)) alert("打开失败：文件夹可能已移动或删除");
+        if (!await openFolder(entry.path)) notifyError("打开失败：文件夹可能已移动或删除");
       } else {
         await openDocByPath(entry.path);
       }
     } catch (error) {
-      alert(`打开失败：${error}`);
+      notifyError(`打开失败：${error}`);
     }
   };
 

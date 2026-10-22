@@ -5,6 +5,7 @@ import { useStore } from "../store";
 import { FileText, LocateFixed, X, FolderSearch, AlertTriangle } from "lucide-react";
 import * as backend from "../lib/backend";
 import { saveDocById } from "../lib/docActions";
+import { notifyError } from "../lib/notify";
 import type { DocFile } from "../lib/types";
 
 /** 右键菜单项统一样式（与文件树菜单一致） */
@@ -235,7 +236,7 @@ export default function Tabs() {
                 onClick={() => {
                   setMenu(null);
                   if (!doc?.path) return;
-                  backend.showInFolder(doc.path).catch((e: unknown) => alert(`打开失败：${e}`));
+                  backend.showInFolder(doc.path).catch((e: unknown) => notifyError(`打开失败：${e}`));
                 }}
               >
                 <FolderSearch size={15} /> 在文件管理器中显示
