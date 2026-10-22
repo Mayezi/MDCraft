@@ -1,10 +1,10 @@
 // 文件树：打开的文件夹（Tauri 后端目录）；浏览器模式显示草稿文档列表
-// 交互：单击打开文件；活动文档高亮；右键菜单（新建/重命名/导出（二级：HTML 可用，PDF 等预留）/打开方式/打开文件位置/删除回收站）；
-// 编辑器打不开的文件（exe 等）交给系统：无关联格式时 Windows 会自己弹「选择应用」框
+// 交互：单击打开文件；活动文档高亮；右键菜单（新建/重命名/导出（二级：HTML 可用，PDF 等预留）/打开文件位置/删除回收站）；
+// 编辑器不认的文件（exe / pdf / 无后缀…）单击拉起系统「选择应用」框，由用户自己选程序打开
 // 无文件夹时提供「打开文件夹」按钮；顶部根目录栏：刷新 + 关闭文件夹
 
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { ChevronRight, FilePlus2, FolderPlus, FileText, Folder, Pencil, Trash2, RefreshCw, EllipsisVertical, Check, FolderOpen, Download, FolderSearch, ArrowDownAZ, ArrowUpAZ, Files, ClockArrowDown, ClockArrowUp, CalendarArrowDown, CalendarArrowUp, FolderUp, List, Plus, AppWindow, FileImage, FileCode, FileJson, FileVideo, FileAudio, FileArchive, FileType, type LucideIcon } from "lucide-react";
+import { ChevronRight, FilePlus2, FolderPlus, FileText, Folder, Pencil, Trash2, RefreshCw, EllipsisVertical, Check, FolderOpen, Download, FolderSearch, ArrowDownAZ, ArrowUpAZ, Files, ClockArrowDown, ClockArrowUp, CalendarArrowDown, CalendarArrowUp, FolderUp, List, Plus, FileImage, FileCode, FileJson, FileVideo, FileAudio, FileArchive, FileType, type LucideIcon } from "lucide-react";
 import { useStore } from "../store";
 import * as backend from "../lib/backend";
 import { openDocByPath, exportDocByPath, exportDraftDoc } from "../lib/docActions";
@@ -306,7 +306,6 @@ function ContextMenu({
   onDelete,
   onExportHtml,
   onReveal,
-  onOpenWith,
 }: {
   menu: CtxMenu;
   onClose: () => void;
@@ -316,8 +315,6 @@ function ContextMenu({
   onDelete: (m: CtxMenu) => void;
   onExportHtml: (m: CtxMenu) => void;
   onReveal: (m: CtxMenu) => void;
-  /** 用系统「选择应用」框指定打开方式 */
-  onOpenWith: (m: CtxMenu) => void;
 }) {
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -329,8 +326,6 @@ function ContextMenu({
   }, [onClose]);
 
   const isMdFile = !!menu.node && !menu.node.isDir && menu.node.name.toLowerCase().endsWith(".md");
-  // 「打开方式…」对所有文件都可用（像 Windows 右键菜单那样，任何文件都能换程序打开）
-  const isFileNode = !!menu.node && !menu.node.isDir;
   return (
     <div
       ref={ref}
@@ -359,11 +354,6 @@ function ContextMenu({
                 if (id === "html") onExportHtml(menu);
               }}
             />
-          )}
-          {isFileNode && (
-            <button className={MENU_ITEM} onClick={() => onOpenWith(menu)}>
-              <AppWindow size={15} /> 打开方式…
-            </button>
           )}
           <button className={MENU_ITEM} onClick={() => onReveal(menu)}>
             <FolderSearch size={15} /> 打开文件位置
@@ -515,12 +505,12 @@ onClick={() => {
           void openDocByPath(node.path, node.name);
           return;
         }
-        // 编辑器不认的文件（exe / pdf / 无后缀…）交给系统：有关联程序就用默认程序打开，
-        // 没有关联时 Windows 会自己弹出「选择应用」框让用户选
-        backend.openPath(node.path).catch((e: unknown) => alert(`打开失败：${e}`));
+        // 编辑器不认的文件（exe / pdf / 无后缀…）：拉起系统「选择应用」框，
+        // 由用户自己选用什么程序打开（不擅自用默认程序执行）
+        backend.openWith(node.path).catch((e: unknown) => alert(`打开失败：${e}`));
       }}
       onDoubleClick={() => {
-        // 双击重命名只对文本文件生效：非文本文件的单击已交给系统打开，
+        // 双击重命名只对文本文件生效：非文本文件的单击已拉起系统选择框，
         // 双击再触发重命名会与系统弹窗打架
         if (isTextEditable(node.name)) setEdit({ path: node.path, mode: "rename" });
       }}
@@ -1058,12 +1048,6 @@ export default function FileTree({ onRecentHeightChange }: { onRecentHeightChang
             setMenu(null);
             if (!m.node) return;
             backend.showInFolder(m.node.path).catch((e: unknown) => alert(`打开失败：${e}`));
-          }}
-          onOpenWith={(m) => {
-            setMenu(null);
-            if (!m.node) return;
-            // 始终拉起系统「选择应用」框（不限于无关联格式）
-            backend.openWith(m.node.path).catch((e: unknown) => alert(`打开失败：${e}`));
           }}
           onDelete={(m) => {
             setMenu(null);
