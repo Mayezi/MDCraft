@@ -149,7 +149,9 @@ function AboutPanel() {
         />
         <div className="min-w-0">
           <div className="flex items-center gap-2">
-            <span className="text-[16px] font-semibold text-[var(--fg-strong)]">{ABOUT.name}</span>
+            <span className="bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent dark:from-blue-400 dark:to-indigo-400">
+              {ABOUT.name}
+            </span>
             <span className="rounded-full bg-[var(--accent-soft)] px-2 py-0.5 font-mono text-[10.5px] text-[var(--accent)]">
               v{APP_VERSION}
             </span>

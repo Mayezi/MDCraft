@@ -50,7 +50,10 @@ export default function UpdateDialog({ open, onClose }: UpdateDialogProps) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/55 backdrop-blur-[2px] p-4 transition-all">
+    <div
+      className="modal-overlay fixed inset-0 z-50 flex items-center justify-center bg-black/55 backdrop-blur-[2px] p-4 transition-all"
+      onDoubleClick={(e) => e.stopPropagation()}
+    >
       <div
         role="dialog"
         aria-modal="true"

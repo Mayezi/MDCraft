@@ -248,7 +248,10 @@ export default function Toolbar() {
       data-tauri-drag-region
       onDoubleClick={(e) => {
         // 无边框窗口：双击工具栏空白区（非按钮）最大化/还原
-        if (backend.isTauri && !(e.target as HTMLElement).closest("button")) {
+        // 弹窗（设置 / 更新）渲染在工具栏 DOM 内，弹窗上的双击不能缩放窗口
+        const target = e.target as HTMLElement;
+        if (target.closest('[role="dialog"], .modal-overlay')) return;
+        if (backend.isTauri && !target.closest("button")) {
           void import("@tauri-apps/api/window")
             .then(({ getCurrentWindow }) => getCurrentWindow().toggleMaximize())
             .catch(() => {});
