@@ -257,6 +257,20 @@ html[data-sidebar-resizing] .sidebar-shell {
   accent-color: var(--accent);
 }
 
+/* 设置搜索跳转：目标行短暂闪烁提示 */
+@keyframes settings-hit-flash {
+  0%,
+  35% {
+    background-color: var(--accent-soft);
+  }
+  100% {
+    background-color: transparent;
+  }
+}
+.settings-hit {
+  animation: settings-hit-flash 1.6s var(--ease-smooth);
+}
+
 /* 对话框 */
 .modal-overlay {
   animation: ui-fade-in var(--dur-2) ease;

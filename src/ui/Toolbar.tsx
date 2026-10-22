@@ -3,7 +3,7 @@
 // 段落类命令由斜杠面板承载；源码模式入口在左下角状态栏（Ctrl+/ 同效）
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { Check, ChevronRight, Eye, FileText, HelpCircle, Moon, Palette, Settings as SettingsIcon, Sun } from "lucide-react";
+import { Check, ChevronRight, FileText, HelpCircle, Moon, Palette, Settings as SettingsIcon, Sun } from "lucide-react";
 import { useStore } from "../store";
 import * as backend from "../lib/backend";
 import { openDocByPath, saveActiveDoc } from "../lib/docActions";
@@ -136,36 +136,6 @@ export default function Toolbar() {
         { label: "另存为", hint: "Ctrl+Shift+S", run: () => void saveActiveDoc(true) },
         { sep: true },
         { label: "关闭标签", run: () => useStore.getState().closeDoc(useStore.getState().activeDocId) },
-      ],
-    },
-    {
-      label: "视图",
-      icon: <Eye size={13} />,
-      build: () => [
-        {
-          label: "主题模式",
-          items: THEME_MODES.map((mode) => ({
-            label: mode.label,
-            checked: settings.themeMode === mode.id,
-            run: () => setSettings({ themeMode: mode.id }),
-          })),
-        },
-        {
-          label: "配色主题",
-          items: THEME_PALETTES.map((palette) => ({
-            label: palette.label,
-            color: palette.color,
-            checked: settings.palette === palette.id,
-            run: () => setSettings({ palette: palette.id }),
-          })),
-        },
-        { sep: true },
-        {
-          label: "源码模式",
-          hint: "Ctrl+/（左下角）",
-          checked: settings.sourceMode,
-          run: () => setSettings({ sourceMode: !settings.sourceMode }),
-        },
       ],
     },
     {

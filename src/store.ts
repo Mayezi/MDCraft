@@ -86,7 +86,7 @@ const savedThemeMode = ((): ThemeMode => {
   return resolveLegacyThemeMode(raw ?? legacy);
 })();
 
-/** 配色方案（复刻 dbx 的 13 套预设） */
+/** 配色方案（参考 dbx 的 13 套预设） */
 const savedPalette = ((): ThemePalette =>
   normalizeThemePalette(localStorage.getItem(THEME_PALETTE_KEY)))();
 

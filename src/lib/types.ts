@@ -38,7 +38,7 @@ export interface OutlineItem {
 /** 主题模式：浅色 / 深色（跟随系统已移除，首次启动按系统偏好落成固定模式） */
 export type ThemeMode = "light" | "dark";
 
-/** 配色方案（复刻 dbx 的 13 套预设，色值见 styles/themes/palettes.css） */
+/** 配色方案（参考 dbx 的 13 套预设，色值见 styles/themes/palettes.css） */
 export type ThemePalette =
   | "pearl"
   | "mist"
