@@ -3,13 +3,13 @@
 // 段落类命令由斜杠面板承载；源码模式入口在左下角状态栏（Ctrl+/ 同效）
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { Check, ChevronRight, Eye, FileText, HelpCircle, Monitor, Moon, Palette, Settings as SettingsIcon, Sun } from "lucide-react";
+import { Check, ChevronRight, Eye, FileText, HelpCircle, Moon, Palette, Settings as SettingsIcon, Sun, SunMoon } from "lucide-react";
 import { useStore } from "../store";
 import * as backend from "../lib/backend";
 import { openDocByPath, saveActiveDoc } from "../lib/docActions";
 import { openFolder } from "../lib/workspace";
 import { getView } from "../editor/viewref";
-import { THEME_MODES, THEME_PALETTES } from "../lib/types";
+import { THEME_MODES, THEME_PALETTES, type ThemeMode } from "../lib/types";
 import { PaletteDot } from "./ThemeControls";
 import { APP_VERSION } from "../lib/version";
 import { WELCOME } from "../lib/samples";
@@ -48,26 +48,31 @@ export default function Toolbar() {
   const updateState = useUpdateState();
   const hasUpdate = updateState.status === "available";
   const [settingsOpen, setSettingsOpen] = useState(false);
-  /** 两个独立的弹出菜单：主题模式 / 配色主题 */
-  const [modeMenuOpen, setModeMenuOpen] = useState(false);
+  /** 配色主题弹出菜单（主题模式用按钮循环切换，见 dbx 的做法） */
   const [paletteMenuOpen, setPaletteMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
-  const modeMenuRef = useRef<HTMLDivElement>(null);
   const paletteMenuRef = useRef<HTMLDivElement>(null);
   /** 二级子菜单是否需向左展开（父项贴近右缘时），避免溢出窗口右边界 */
   const [subFlip, setSubFlip] = useState<Record<string, boolean>>({});
 
-  // 主题模式按钮：图标随当前模式变化（浅色=太阳 / 深色=月亮 / 跟随系统=显示器）
+  // 主题模式按钮：图标随当前模式变化（浅色=太阳 / 深色=月亮 / 跟随系统=日月）
   const modeLabel = THEME_MODES.find((m) => m.id === settings.themeMode)?.label ?? "跟随系统";
   const paletteLabel = THEME_PALETTES.find((p) => p.id === settings.palette)?.label ?? "";
   const modeIcon =
     settings.themeMode === "light" ? (
-      <Sun size={16} className="transition-transform duration-200" />
+      <Sun size={16} />
     ) : settings.themeMode === "dark" ? (
-      <Moon size={16} className="transition-transform duration-200" />
+      <Moon size={16} />
     ) : (
-      <Monitor size={16} className="transition-transform duration-200" />
+      <SunMoon size={16} />
     );
+  /** 点击按钮循环切换：浅色 → 深色 → 跟随系统 → 浅色（对齐 dbx） */
+  const cycleThemeMode = () => {
+    const order: ThemeMode[] = ["light", "dark", "system"];
+    const index = order.indexOf(settings.themeMode);
+    const next = order[(index + 1) % order.length] ?? "light";
+    setSettings({ themeMode: next });
+  };
 
   // 菜单：点击菜单组之外关闭 / Esc 关闭
   useEffect(() => {
@@ -96,13 +101,11 @@ export default function Toolbar() {
   useEffect(() => {
     const close = (e: PointerEvent) => {
       if (menuOpen !== null && !menuRef.current?.contains(e.target as Node)) setMenuOpen(null);
-      if (!modeMenuRef.current?.contains(e.target as Node)) setModeMenuOpen(false);
       if (!paletteMenuRef.current?.contains(e.target as Node)) setPaletteMenuOpen(false);
     };
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
         setMenuOpen(null);
-        setModeMenuOpen(false);
         setPaletteMenuOpen(false);
         getView()?.focus();
       }
@@ -340,42 +343,19 @@ export default function Toolbar() {
           </a>
         </Tooltip>
 
-        {/* 主题模式：浅色 / 深色 / 跟随系统 */}
-        <div ref={modeMenuRef} className="relative">
-          <Tooltip content={`主题模式：${modeLabel}`}>
-            <button
-              aria-label="主题模式"
-              aria-expanded={modeMenuOpen}
-              onMouseDown={(e) => e.preventDefault()}
-              onClick={() => {
-                setModeMenuOpen(!modeMenuOpen);
-                setPaletteMenuOpen(false);
-              }}
-              className="my-1 flex h-8 w-7 cursor-pointer items-center justify-center rounded-md text-[var(--fg)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--fg)] active:[&_svg]:scale-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)]"
-            >
+        {/* 主题模式：点击循环切换 浅色 → 深色 → 跟随系统（对齐 dbx） */}
+        <Tooltip content={`主题：${modeLabel}`}>
+          <button
+            aria-label="切换主题"
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={cycleThemeMode}
+            className="my-1 flex h-8 w-7 cursor-pointer items-center justify-center rounded-md text-[var(--fg)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--fg)] active:[&_svg]:scale-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)]"
+          >
+            <span key={settings.themeMode} className="theme-mode-icon flex items-center">
               {modeIcon}
-            </button>
-          </Tooltip>
-          {modeMenuOpen && (
-            <div className="ui-pop ui-pop-right absolute right-0 top-full z-50 mt-1 w-[150px] rounded-lg border border-[var(--border)] bg-[var(--bg)] p-1 shadow-[0_8px_24px_rgba(0,0,0,0.2)]">
-              {THEME_MODES.map((mode) => (
-                <button
-                  key={mode.id}
-                  onClick={() => {
-                    setSettings({ themeMode: mode.id });
-                    setModeMenuOpen(false);
-                  }}
-                  className="flex min-h-[28px] w-full cursor-pointer items-center gap-2 rounded-md px-2 text-left text-[13px] text-[var(--fg)] hover:bg-[var(--bg-hover)]"
-                >
-                  <span className="flex-1">{mode.label}</span>
-                  {settings.themeMode === mode.id && (
-                    <Check size={14} className="text-[var(--accent)]" />
-                  )}
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
+            </span>
+          </button>
+        </Tooltip>
 
         {/* 配色主题：13 套预设，名称前带色块 */}
         <div ref={paletteMenuRef} className="relative">
@@ -384,10 +364,7 @@ export default function Toolbar() {
               aria-label="配色主题"
               aria-expanded={paletteMenuOpen}
               onMouseDown={(e) => e.preventDefault()}
-              onClick={() => {
-                setPaletteMenuOpen(!paletteMenuOpen);
-                setModeMenuOpen(false);
-              }}
+              onClick={() => setPaletteMenuOpen(!paletteMenuOpen)}
               className="my-1 flex h-8 w-7 cursor-pointer items-center justify-center rounded-md text-[var(--fg)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--fg)] active:[&_svg]:scale-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)]"
             >
               <Palette size={16} className="transition-transform duration-200" />

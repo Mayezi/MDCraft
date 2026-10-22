@@ -1907,7 +1907,7 @@ dependencies = [
 
 [[package]]
 name = "mdcraft"
-version = "0.18.1"
+version = "0.18.2"
 dependencies = [
  "mdcraft-core",
  "serde",

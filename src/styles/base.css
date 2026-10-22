@@ -230,6 +230,26 @@ html[data-sidebar-resizing] .sidebar-shell {
   animation: tree-child-in var(--dur-2) var(--ease-smooth);
 }
 
+/* 主题按钮图标切换：旋转 + 缩放入场（对齐 dbx 的 toolbar-theme-icon） */
+.theme-mode-icon {
+  animation: theme-mode-icon-in 260ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+@keyframes theme-mode-icon-in {
+  0% {
+    opacity: 0;
+    transform: rotate(-18deg) scale(0.72);
+  }
+  100% {
+    opacity: 1;
+    transform: rotate(0) scale(1);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .theme-mode-icon {
+    animation: none;
+  }
+}
+
 /* 设置面板：原生 range 用 accent-color 跟随主题 */
 .settings-range {
   height: 22px;
