@@ -2,7 +2,7 @@
    基础层 —— 排版 + 由配色方案推导的语义变量。
 
    外观拆成两个独立维度（对齐 dbx）：
-   - 主题模式：浅色 / 深色 / 跟随系统 → 写在 <html data-theme-mode>
+   - 主题模式：浅色 / 深色 → 写在 <html data-theme-mode>
    - 配色方案：13 套预设 → 写在 <html data-palette>（见 palettes.css）
 
    palettes.css 只提供原始色（--bg / --fg / --accent / --border …），

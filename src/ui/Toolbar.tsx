@@ -3,13 +3,13 @@
 // 段落类命令由斜杠面板承载；源码模式入口在左下角状态栏（Ctrl+/ 同效）
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { Check, ChevronRight, Eye, FileText, HelpCircle, Moon, Palette, Settings as SettingsIcon, Sun, SunMoon } from "lucide-react";
+import { Check, ChevronRight, Eye, FileText, HelpCircle, Moon, Palette, Settings as SettingsIcon, Sun } from "lucide-react";
 import { useStore } from "../store";
 import * as backend from "../lib/backend";
 import { openDocByPath, saveActiveDoc } from "../lib/docActions";
 import { openFolder } from "../lib/workspace";
 import { getView } from "../editor/viewref";
-import { THEME_MODES, THEME_PALETTES, type ThemeMode } from "../lib/types";
+import { THEME_MODES, THEME_PALETTES } from "../lib/types";
 import { PaletteDot } from "./ThemeControls";
 import { APP_VERSION } from "../lib/version";
 import { WELCOME } from "../lib/samples";
@@ -55,23 +55,14 @@ export default function Toolbar() {
   /** 二级子菜单是否需向左展开（父项贴近右缘时），避免溢出窗口右边界 */
   const [subFlip, setSubFlip] = useState<Record<string, boolean>>({});
 
-  // 主题模式按钮：图标随当前模式变化（浅色=太阳 / 深色=月亮 / 跟随系统=日月）
-  const modeLabel = THEME_MODES.find((m) => m.id === settings.themeMode)?.label ?? "跟随系统";
+  // 主题模式按钮：图标随当前模式变化（浅色=太阳 / 深色=月亮）
+  const modeLabel = THEME_MODES.find((m) => m.id === settings.themeMode)?.label ?? "浅色";
   const paletteLabel = THEME_PALETTES.find((p) => p.id === settings.palette)?.label ?? "";
   const modeIcon =
-    settings.themeMode === "light" ? (
-      <Sun size={16} />
-    ) : settings.themeMode === "dark" ? (
-      <Moon size={16} />
-    ) : (
-      <SunMoon size={16} />
-    );
-  /** 点击按钮循环切换：浅色 → 深色 → 跟随系统 → 浅色（对齐 dbx） */
+    settings.themeMode === "light" ? <Sun size={16} /> : <Moon size={16} />;
+  /** 点击按钮循环切换：浅色 ↔ 深色（对齐 dbx） */
   const cycleThemeMode = () => {
-    const order: ThemeMode[] = ["light", "dark", "system"];
-    const index = order.indexOf(settings.themeMode);
-    const next = order[(index + 1) % order.length] ?? "light";
-    setSettings({ themeMode: next });
+    setSettings({ themeMode: settings.themeMode === "light" ? "dark" : "light" });
   };
 
   // 菜单：点击菜单组之外关闭 / Esc 关闭
@@ -343,7 +334,7 @@ export default function Toolbar() {
           </a>
         </Tooltip>
 
-        {/* 主题模式：点击循环切换 浅色 → 深色 → 跟随系统（对齐 dbx） */}
+        {/* 主题模式：点击循环切换 浅色 ↔ 深色（对齐 dbx） */}
         <Tooltip content={`主题：${modeLabel}`}>
           <button
             aria-label="切换主题"

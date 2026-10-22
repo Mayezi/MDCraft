@@ -10,19 +10,16 @@
     <link rel="icon" type="image/png" href="/app-icon.png" />
     <script>
       // 外观在首帧前应用：启动画面和后续界面都不会先闪一下默认配色
-      // 主题模式（浅色/深色/跟随系统）与配色方案是两个维度，与 dbx 一致
+      // 主题模式（浅色/深色）与配色方案是两个维度，与 dbx 一致
       (function () {
         try {
           var mode = localStorage.getItem("mdcraft:theme-mode");
           var palette = localStorage.getItem("mdcraft:theme-palette");
-          if (mode !== "light" && mode !== "dark" && mode !== "system") {
-            mode = "system";
+          if (mode !== "light" && mode !== "dark") {
+            // 旧配置里的“跟随系统”与首次启动：按系统偏好落成固定模式
+            mode = window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
           }
-          var dark =
-            mode === "dark" ||
-            (mode === "system" &&
-              window.matchMedia("(prefers-color-scheme: dark)").matches);
-          document.documentElement.dataset.themeMode = dark ? "dark" : "light";
+          document.documentElement.dataset.themeMode = mode;
           document.documentElement.dataset.palette = palette || "pearl";
         } catch (e) {
           document.documentElement.dataset.themeMode = "light";

@@ -1,4 +1,4 @@
-// 外观应用层：主题模式（浅色/深色/跟随系统）与配色方案是两个独立维度，
+// 外观应用层：主题模式（浅色/深色）与配色方案是两个独立维度，
 // 对齐 dbx 的 useTheme + appTheme：模式决定深浅，配色决定色板。
 // 两者最终写到 <html> 的 data-theme-mode / data-palette 上，由 CSS 变量接管。
 
@@ -9,7 +9,7 @@ export const THEME_MODE_KEY = "mdcraft:theme-mode";
 export const THEME_PALETTE_KEY = "mdcraft:theme-palette";
 
 export function normalizeThemeMode(value: unknown): ThemeMode {
-  return value === "light" || value === "dark" || value === "system" ? value : "system";
+  return value === "dark" ? "dark" : "light";
 }
 
 export function normalizeThemePalette(value: unknown): ThemePalette {
@@ -18,35 +18,25 @@ export function normalizeThemePalette(value: unknown): ThemePalette {
     : "pearl";
 }
 
-/** system 模式解析为实际深浅 */
-export function resolveThemeAppearance(
-  mode: ThemeMode,
-  prefersDark: boolean,
-): "light" | "dark" {
-  if (mode === "system") return prefersDark ? "dark" : "light";
-  return mode;
-}
-
 export function prefersDarkScheme(): boolean {
   if (typeof window === "undefined" || typeof window.matchMedia !== "function") return false;
   return window.matchMedia("(prefers-color-scheme: dark)").matches;
 }
 
-/** 把模式与配色写到 <html>（深浅已解析，system 不落到 DOM 上） */
+/**
+ * 迁移用：旧的「跟随系统」（system）与未设置过的值，统一按当前系统偏好
+ * 落成固定的浅色/深色，之后不再随系统变化。
+ */
+export function resolveLegacyThemeMode(value: unknown): ThemeMode {
+  if (value === "light" || value === "dark") return value;
+  return prefersDarkScheme() ? "dark" : "light";
+}
+
+/** 把模式与配色写到 <html> */
 export function applyThemeAttributes(mode: ThemeMode, palette: ThemePalette): void {
   if (typeof document === "undefined") return;
   const root = document.documentElement;
-  const appearance = resolveThemeAppearance(mode, prefersDarkScheme());
-  root.dataset.themeMode = appearance;
+  root.dataset.themeMode = mode;
   root.dataset.palette = palette;
-  root.style.colorScheme = appearance;
-}
-
-/** 监听系统深浅变化（跟随系统模式下需要重新应用） */
-export function onSystemThemeChange(handler: () => void): () => void {
-  if (typeof window === "undefined" || typeof window.matchMedia !== "function") return () => {};
-  const media = window.matchMedia("(prefers-color-scheme: dark)");
-  const listener = () => handler();
-  media.addEventListener("change", listener);
-  return () => media.removeEventListener("change", listener);
+  root.style.colorScheme = mode;
 }

@@ -222,7 +222,7 @@ export default function SettingsDialog({ onClose }: { onClose: () => void }) {
               </button>
             }
           >
-            <SettingRow title="主题模式" description="浅色 / 深色 / 跟随系统">
+            <SettingRow title="主题模式" description="浅色 / 深色">
               <ThemeModeSwitch />
             </SettingRow>
             <SettingRow title="配色主题" description="界面与正文的配色方案（与主题模式相互独立）">

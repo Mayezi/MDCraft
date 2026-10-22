@@ -13,7 +13,7 @@ import { importDroppedPaths, importDroppedFiles } from "./lib/drop";
 import { ensureWorkspaceFor, restoreFolder } from "./lib/workspace";
 import { checkForUpdatesOnStartup } from "./lib/updater";
 import { dismissBootSplash } from "./lib/boot-splash";
-import { applyThemeAttributes, onSystemThemeChange } from "./lib/theme";
+import { applyThemeAttributes } from "./lib/theme";
 import { getView } from "./editor/viewref";
 import { saveActiveDoc, saveAllDirty } from "./lib/docActions";
 import type { DocFile } from "./lib/types";
@@ -94,12 +94,6 @@ export default function App() {
     } else {
       apply();
     }
-  }, [themeMode, palette]);
-
-  // 跟随系统：系统深浅切换时同步刷新外观
-  useEffect(() => {
-    if (themeMode !== "system") return;
-    return onSystemThemeChange(() => applyThemeAttributes(themeMode, palette));
   }, [themeMode, palette]);
 
   // 用户自定义排版：写内联 CSS 变量覆盖主题默认值；null 表示跟随主题

@@ -1,7 +1,7 @@
 // 设置配置的 JSON 备份格式：只包含用户偏好，不包含文档、最近文件等数据。
 
 import { THEME_MODES, THEME_PALETTES, type Settings } from "./types";
-import { normalizeThemeMode, normalizeThemePalette } from "./theme";
+import { normalizeThemePalette, resolveLegacyThemeMode } from "./theme";
 
 const BACKUP_VERSION = 1;
 const SIDEBAR_TABS = ["files", "outline"] as const;
@@ -87,8 +87,9 @@ export function parseSettingsBackup(raw: string): Partial<Settings> {
     patch.themeMode = data.theme === "night" || data.theme === "dark" ? "dark" : "light";
     patch.palette = "pearl";
   }
-  if (data.themeMode !== undefined && themeMode === undefined)
-    patch.themeMode = normalizeThemeMode(data.themeMode);
+  // 旧配置的 system（跟随系统）按当前系统偏好落成固定模式
+  if (data.themeMode === "system")
+    patch.themeMode = resolveLegacyThemeMode("system");
   if (data.palette !== undefined && palette === undefined)
     patch.palette = normalizeThemePalette(data.palette);
 

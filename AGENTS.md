@@ -45,7 +45,7 @@ MDCraft — 所见即所得 Markdown 编辑器（Tauri 2 + Rust 核心 + React 1
 ## 状态与外观
 
 - 编辑器状态池在 React 之外：`src/store.ts` 的 `editorStates: Map<docId, EditorState>`；应用状态用 zustand `useStore`。避免把 EditorState 放进 React state。
-- 外观是两个独立维度（对齐 dbx）：**主题模式**（浅色/深色/跟随系统）写到 `<html data-theme-mode>`，**配色方案**（13 套预设）写到 `<html data-palette>`。Tailwind `darkMode` 绑定 `[data-theme-mode="dark"]`。
+- 外观是两个独立维度（对齐 dbx）：**主题模式**（浅色/深色）写到 `<html data-theme-mode>`，**配色方案**（13 套预设）写到 `<html data-palette>`。Tailwind `darkMode` 绑定 `[data-theme-mode="dark"]`。首次启动（无历史值）按系统偏好落成固定模式，之后不再随系统变化。
 - 配色方案只提供原始色（`--bg` / `--fg` / `--accent` / `--border` 等 10 个），其余语义变量（`--accent-soft` / `--selection` / `--link-color` / 表格与引用等）由 `src/styles/themes/base.css` 用 `color-mix` 从原始色推导——新增配色只需在 `src/styles/themes/palettes.css` 补一段浅色 + 一段深色。
 - 排版（字体/字号/行高）与配色解耦，唯一一套在 `themes/base.css`；语法高亮按深浅两套固定在同一文件。
 - 注册表在 `lib/types.ts`（`THEME_MODES` / `THEME_PALETTES`），应用逻辑在 `lib/theme.ts`，持久化键 `mdcraft:theme-mode` / `mdcraft:theme-palette`（旧键 `mdcraft:theme` 在 `store.ts` 迁移）。新增配色需：`lib/types.ts` 注册 + `styles/themes/palettes.css` 补色值。

@@ -12,8 +12,8 @@ import {
 import {
   THEME_MODE_KEY,
   THEME_PALETTE_KEY,
-  normalizeThemeMode,
   normalizeThemePalette,
+  resolveLegacyThemeMode,
 } from "./lib/theme";
 import { scheduleSettingsFileSave } from "./lib/settingsFile";
 import type { EditorState } from "@codemirror/state";
@@ -76,14 +76,14 @@ interface AppStore {
   setLocateRequest: (path: string | null) => void;
 }
 
-/** 主题模式：浅色 / 深色 / 跟随系统；旧版 mdcraft:theme（night 等）在此迁移 */
+/** 主题模式：浅色 / 深色；旧版 mdcraft:theme（night 等）与 system 在此迁移 */
 const savedThemeMode = ((): ThemeMode => {
   const raw = localStorage.getItem(THEME_MODE_KEY);
-  if (raw) return normalizeThemeMode(raw);
+  if (raw === "light" || raw === "dark") return raw;
   const legacy = localStorage.getItem("mdcraft:theme");
-  if (!legacy) return "system";
-  localStorage.removeItem("mdcraft:theme");
-  return legacy === "dark" || legacy === "night" ? "dark" : "light";
+  if (legacy) localStorage.removeItem("mdcraft:theme");
+  // 旧版 system 或从未设置过：按系统偏好落成固定模式
+  return resolveLegacyThemeMode(raw ?? legacy);
 })();
 
 /** 配色方案（复刻 dbx 的 13 套预设） */

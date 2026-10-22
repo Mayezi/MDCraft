@@ -35,8 +35,8 @@ export interface OutlineItem {
   line: number;
 }
 
-/** 主题模式：浅色 / 深色 / 跟随系统 */
-export type ThemeMode = "light" | "dark" | "system";
+/** 主题模式：浅色 / 深色（跟随系统已移除，首次启动按系统偏好落成固定模式） */
+export type ThemeMode = "light" | "dark";
 
 /** 配色方案（复刻 dbx 的 13 套预设，色值见 styles/themes/palettes.css） */
 export type ThemePalette =
@@ -58,7 +58,6 @@ export type ThemePalette =
 export const THEME_MODES: { id: ThemeMode; label: string }[] = [
   { id: "light", label: "浅色" },
   { id: "dark", label: "深色" },
-  { id: "system", label: "跟随系统" },
 ];
 
 /** 配色方案元信息：color 为色块预览色（菜单里显示在名称前） */
@@ -79,7 +78,7 @@ export const THEME_PALETTES: { id: ThemePalette; label: string; color: string }[
 ];
 
 export interface Settings {
-  /** 主题模式（浅色 / 深色 / 跟随系统） */
+  /** 主题模式（浅色 / 深色） */
   themeMode: ThemeMode;
   /** 配色方案 */
   palette: ThemePalette;
