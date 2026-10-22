@@ -6,7 +6,7 @@ import { useEffect } from "react";
 import { FilePlus2, Zap, Table2, FolderOpen } from "lucide-react";
 import { useStore } from "../store";
 import * as backend from "../lib/backend";
-import { openDocByPath } from "../lib/docActions";
+import { openEditableFile } from "../lib/docActions";
 import { dismissBootSplash } from "../lib/boot-splash";
 import { APP_VERSION } from "../lib/version";
 
@@ -17,7 +17,7 @@ export default function EmptyState() {
 
   const openDoc = async () => {
     const picked = await backend.pickOpenFile();
-    if (picked) await openDocByPath(picked.path, picked.name);
+    if (picked) await openEditableFile(picked.path, picked.name);
   };
 
   return (
@@ -56,23 +56,25 @@ export default function EmptyState() {
             新建文档，或打开已有 Markdown 文件
           </p>
           <div className="mt-6 flex items-center justify-center gap-3">
+            {/* 主按钮用品牌渐变（与上方 MDCraft 字标同源）：洁白配色的主色是近黑色，
+                纯色块在浅色页面上过于生硬，这里固定用品牌蓝紫渐变。 */}
             <button
               onClick={() => useStore.getState().newDoc()}
-              className="inline-flex items-center gap-2.5 rounded-xl bg-[var(--accent)] px-6 py-2.5 text-sm font-semibold text-white shadow-[0_10px_26px_-10px_rgba(0,0,0,0.45)] ring-1 ring-inset ring-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
+              className="inline-flex items-center gap-2.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 px-6 py-2.5 text-sm font-semibold text-white shadow-[0_10px_24px_-10px_rgba(59,130,246,0.55)] ring-1 ring-inset ring-white/20 transition-[filter,box-shadow] duration-200 hover:brightness-110 hover:shadow-[0_12px_28px_-10px_rgba(79,70,229,0.6)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 active:brightness-95 dark:from-blue-500 dark:to-indigo-500"
             >
               <FilePlus2 size={16} />
               新建文档
-              <kbd className="rounded-md bg-white/15 px-1.5 py-0.5 text-[11px] font-medium tracking-wide text-white/85">
+              <kbd className="rounded-md bg-white/20 px-1.5 py-0.5 text-[11px] font-medium tracking-wide text-white/90 ring-1 ring-inset ring-white/20">
                 Ctrl+N
               </kbd>
             </button>
             <button
               onClick={() => void openDoc()}
-              className="inline-flex items-center gap-2.5 rounded-xl bg-[var(--bg)] px-6 py-2.5 text-sm font-semibold text-[var(--accent)] ring-1 ring-inset ring-[var(--accent)]/35 shadow-[0_10px_26px_-14px_rgba(0,0,0,0.3)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
+              className="inline-flex items-center gap-2.5 rounded-xl bg-[var(--bg)] px-6 py-2.5 text-sm font-semibold text-[var(--fg)] ring-1 ring-inset ring-[var(--border)] shadow-[0_8px_20px_-14px_rgba(0,0,0,0.3)] transition-colors duration-200 hover:bg-[var(--bg-hover)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)] dark:shadow-[0_8px_20px_-14px_rgba(0,0,0,0.6)]"
             >
               <FolderOpen size={16} />
               打开文档
-              <kbd className="rounded-md bg-[var(--accent)]/10 px-1.5 py-0.5 text-[11px] font-medium tracking-wide text-[var(--accent)]">
+              <kbd className="rounded-md bg-[var(--bg-hover)] px-1.5 py-0.5 text-[11px] font-medium tracking-wide text-[var(--fg-faint)] ring-1 ring-inset ring-[var(--border)]">
                 Ctrl+O
               </kbd>
             </button>

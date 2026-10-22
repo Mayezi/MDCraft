@@ -4,7 +4,7 @@ import { useEffect, useId, useRef, useState } from "react";
 import { ChevronRight, FilePlus, FileText, Folder, FolderOpen } from "lucide-react";
 import * as backend from "../lib/backend";
 import { useStore } from "../store";
-import { openDocByPath } from "../lib/docActions";
+import { openEditableFile } from "../lib/docActions";
 import { openFolder } from "../lib/workspace";
 import { notifyError } from "../lib/notify";
 import type { RecentEntry } from "../lib/types";
@@ -44,7 +44,8 @@ export default function RecentFiles({ onHeightChange }: { onHeightChange?: (heig
       if (entry.kind === "folder") {
         if (!await openFolder(entry.path)) notifyError("打开失败：文件夹可能已移动或删除");
       } else {
-        await openDocByPath(entry.path);
+        // 图片 / 程序 / 无扩展名等不进编辑器（会显示乱码），改弹「不支持直接打开」
+        await openEditableFile(entry.path);
       }
     } catch (error) {
       notifyError(`打开失败：${error}`);
@@ -54,7 +55,7 @@ export default function RecentFiles({ onHeightChange }: { onHeightChange?: (heig
   // 最近列表里没有想要的，直接在这里唤起系统对话框打开
   const pickFile = async () => {
     const picked = await backend.pickOpenFile();
-    if (picked) await openDocByPath(picked.path, picked.name);
+    if (picked) await openEditableFile(picked.path, picked.name);
   };
   const pickFolder = async () => {
     const root = await backend.pickOpenFolder();

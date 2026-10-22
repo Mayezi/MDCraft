@@ -6,7 +6,7 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Check, ChevronRight, FileText, HelpCircle, Moon, Palette, Settings as SettingsIcon, Sun } from "lucide-react";
 import { useStore } from "../store";
 import * as backend from "../lib/backend";
-import { openDocByPath, saveActiveDoc } from "../lib/docActions";
+import { openEditableFile, saveActiveDoc } from "../lib/docActions";
 import { openFolder } from "../lib/workspace";
 import { getView } from "../editor/viewref";
 import { THEME_MODES, THEME_PALETTES } from "../lib/types";
@@ -113,7 +113,7 @@ export default function Toolbar() {
 
   const onOpenFile = async () => {
     const picked = await backend.pickOpenFile();
-    if (picked) await openDocByPath(picked.path, picked.name);
+    if (picked) await openEditableFile(picked.path, picked.name);
   };
 
   const onOpenFolderBtn = async () => {

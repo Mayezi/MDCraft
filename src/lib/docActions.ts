@@ -6,6 +6,8 @@ import { getView } from "../editor/viewref";
 import * as backend from "./backend";
 import { ensureWorkspaceFor } from "./workspace";
 import { notifyError } from "./notify";
+import { fileNameOf, isTextEditable } from "./fileTypes";
+import { showUnsupportedFile } from "./unsupportedFile";
 
 /** 取当前活动文档的编辑器状态（并把视图状态写回状态池） */
 export function currentDocState(): EditorState | null {
@@ -134,4 +136,24 @@ export async function openDocByPath(path: string, name?: string) {
   await ensureWorkspaceFor(path);
   const docName = name ?? path.split(/[\\/]/).pop() ?? "untitled.md";
   return useStore.getState().openContent(docName, path, content);
+}
+
+/**
+ * 打开磁盘文件（最近打开 / 文件选择器等入口统一走这里）：
+ * 文本类直接进编辑器；图片、程序、无扩展名等返回 false 并弹出
+ * 「此文件不支持直接打开」，由用户自选打开方式。
+ */
+export async function openEditableFile(path: string, name?: string): Promise<boolean> {
+  const fileName = name ?? fileNameOf(path);
+  // 浏览器模式的草稿本来就是文本内容，直接打开即可
+  if (!backend.isTauri) {
+    await openDocByPath(path, fileName);
+    return true;
+  }
+  if (!isTextEditable(fileName)) {
+    showUnsupportedFile(path);
+    return false;
+  }
+  await openDocByPath(path, fileName);
+  return true;
 }

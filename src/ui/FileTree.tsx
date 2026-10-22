@@ -8,6 +8,7 @@ import { ChevronRight, FilePlus2, FolderPlus, FileText, Folder, Pencil, Trash2, 
 import { useStore } from "../store";
 import * as backend from "../lib/backend";
 import { openDocByPath, exportDocByPath, exportDraftDoc } from "../lib/docActions";
+import { isTextEditable } from "../lib/fileTypes";
 import { openFolder } from "../lib/workspace";
 import { notifyError } from "../lib/notify";
 import RecentFiles from "./RecentFiles";
@@ -32,23 +33,6 @@ function isVisibleFile(name: string): boolean {
   if (dot <= 0) return false;
   const ext = name.slice(dot + 1).toLowerCase();
   return MARKDOWN_EXT.includes(ext) || ASSET_EXT.includes(ext);
-}
-
-/** 可作为纯文本在编辑器内打开的文件扩展名（其余文件用系统默认程序打开） */
-const TEXT_EDITABLE_EXT = [
-  "md", "markdown", "mdx", "txt", "text", "log",
-  "json", "yaml", "yml", "toml", "ini", "conf", "config",
-  "js", "jsx", "ts", "tsx", "css", "scss", "less", "html", "htm", "xml",
-  "py", "rs", "go", "java", "c", "h", "cpp", "hpp", "cs", "rb", "php",
-  "sh", "bash", "ps1", "bat", "cmd",
-];
-
-/** 判断文件是否应用编辑器打开（是 → 纯文本编辑；否 → 交系统处理） */
-function isTextEditable(name: string): boolean {
-  const dot = name.lastIndexOf(".");
-  // 无扩展名：格式无法识别（LICENSE / Makefile 之类），不由编辑器接管
-  if (dot <= 0) return false;
-  return TEXT_EDITABLE_EXT.includes(name.slice(dot + 1).toLowerCase());
 }
 
 /** 按扩展名返回对应文件图标（未匹配用通用文件图标） */
