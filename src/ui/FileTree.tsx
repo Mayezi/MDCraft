@@ -9,6 +9,7 @@ import { useStore } from "../store";
 import * as backend from "../lib/backend";
 import { openDocByPath, exportDocByPath, exportDraftDoc } from "../lib/docActions";
 import { isTextEditable } from "../lib/fileTypes";
+import { showUnsupportedFile } from "../lib/unsupportedFile";
 import { openFolder } from "../lib/workspace";
 import { notifyError } from "../lib/notify";
 import RecentFiles from "./RecentFiles";
@@ -491,13 +492,13 @@ onClick={() => {
           void openDocByPath(node.path, node.name);
           return;
         }
-        // 编辑器不认的文件（exe / pdf / 无后缀…）：拉起系统「选择应用」框，
-        // 由用户自己选用什么程序打开（不擅自用默认程序执行）
-        backend.openWith(node.path).catch((e: unknown) => notifyError(`打开失败：${e}`));
+        // 编辑器不认的文件（exe / pdf / 无后缀…）：先提示无法直接打开，
+        // 由用户自己决定要不要改用其它程序打开（不擅自用默认程序执行）
+        showUnsupportedFile(node.path);
       }}
       onDoubleClick={() => {
-        // 双击重命名只对文本文件生效：非文本文件的单击已拉起系统选择框，
-        // 双击再触发重命名会与系统弹窗打架
+        // 双击重命名只对文本文件生效：非文本文件的单击已弹出「不支持直接打开」，
+        // 双击再触发重命名会与弹窗打架
         if (isTextEditable(node.name)) setEdit({ path: node.path, mode: "rename" });
       }}
       onContextMenu={(e) => {
