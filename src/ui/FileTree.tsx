@@ -1,17 +1,16 @@
 // 文件树：打开的文件夹（Tauri 后端目录）；浏览器模式显示草稿文档列表
 // 交互：单击打开文件；活动文档高亮；右键菜单（新建/重命名/导出（二级：HTML 可用，PDF 等预留）/打开方式/打开文件位置/删除回收站）；
-// 编辑器打不开的文件（exe 等）单击弹「打开方式」对话框，由用户选程序；无文件夹时提供「打开文件夹」按钮
+// 编辑器打不开的文件（exe 等）交给系统：无关联格式时 Windows 会自己弹「选择应用」框
+// 无文件夹时提供「打开文件夹」按钮；顶部根目录栏：刷新 + 关闭文件夹
 
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { ChevronRight, FilePlus2, FolderPlus, FileText, Folder, Pencil, Trash2, RefreshCw, EllipsisVertical, Check, FolderOpen, Download, FolderSearch, ArrowDownAZ, ArrowUpAZ, Files, ClockArrowDown, ClockArrowUp, CalendarArrowDown, CalendarArrowUp, FolderUp, List, Plus, AppWindow, type LucideIcon } from "lucide-react";
+import { ChevronRight, FilePlus2, FolderPlus, FileText, Folder, Pencil, Trash2, RefreshCw, EllipsisVertical, Check, FolderOpen, Download, FolderSearch, ArrowDownAZ, ArrowUpAZ, Files, ClockArrowDown, ClockArrowUp, CalendarArrowDown, CalendarArrowUp, FolderUp, List, Plus, AppWindow, FileImage, FileCode, FileJson, FileVideo, FileAudio, FileArchive, FileType, type LucideIcon } from "lucide-react";
 import { useStore } from "../store";
 import * as backend from "../lib/backend";
 import { openDocByPath, exportDocByPath, exportDraftDoc } from "../lib/docActions";
 import { openFolder } from "../lib/workspace";
 import RecentFiles from "./RecentFiles";
 import ExportResultDialog from "./ExportResultDialog";
-import OpenWithDialog from "./OpenWithDialog";
-import { fileIcon } from "./fileIcons";
 import type { FileNode } from "../lib/types";
 
 /** 路径拼接（平台分隔符自适应：Windows 反斜杠 / 其它正斜杠） */
@@ -42,11 +41,27 @@ const TEXT_EDITABLE_EXT = [
   "sh", "bash", "ps1", "bat", "cmd",
 ];
 
-/** 判断文件是否应用编辑器打开（是 → 纯文本编辑；否 → 系统默认程序打开） */
+/** 判断文件是否应用编辑器打开（是 → 纯文本编辑；否 → 交系统处理） */
 function isTextEditable(name: string): boolean {
   const dot = name.lastIndexOf(".");
-  if (dot <= 0) return true; // 无扩展名按文本打开
+  // 无扩展名：格式无法识别（LICENSE / Makefile 之类），不由编辑器接管
+  if (dot <= 0) return false;
   return TEXT_EDITABLE_EXT.includes(name.slice(dot + 1).toLowerCase());
+}
+
+/** 按扩展名返回对应文件图标（未匹配用通用文件图标） */
+function fileIcon(name: string): LucideIcon {
+  const dot = name.lastIndexOf(".");
+  const ext = dot > 0 ? name.slice(dot + 1).toLowerCase() : "";
+  const inList = (list: string[]) => list.includes(ext);
+  if (inList(["png", "jpg", "jpeg", "gif", "webp", "svg", "bmp", "ico", "avif"])) return FileImage;
+  if (inList(["mp4", "mkv", "avi", "mov", "webm", "flv", "wmv", "mpg"])) return FileVideo;
+  if (inList(["mp3", "wav", "flac", "ogg", "m4a", "aac", "wma", "opus"])) return FileAudio;
+  if (inList(["zip", "rar", "7z", "tar", "gz", "bz2", "xz", "iso"])) return FileArchive;
+  if (inList(["json", "jsonc"])) return FileJson;
+  if (inList(["js", "ts", "jsx", "tsx", "cjs", "mjs", "html", "htm", "xml", "css", "scss", "less", "py", "rs", "go", "java", "c", "h", "cpp", "hpp", "cs", "rb", "php", "sh", "bash", "ps1", "bat", "cmd", "sql", "vue", "svelte"])) return FileCode;
+  if (inList(["pdf"])) return FileType;
+  return FileText;
 }
 
 /** 按设置过滤整棵树：showAllFiles 时原样返回，否则只保留目录与 md/资源文件 */
@@ -301,6 +316,7 @@ function ContextMenu({
   onDelete: (m: CtxMenu) => void;
   onExportHtml: (m: CtxMenu) => void;
   onReveal: (m: CtxMenu) => void;
+  /** 用系统「选择应用」框指定打开方式 */
   onOpenWith: (m: CtxMenu) => void;
 }) {
   const ref = useRef<HTMLDivElement>(null);
@@ -313,8 +329,8 @@ function ContextMenu({
   }, [onClose]);
 
   const isMdFile = !!menu.node && !menu.node.isDir && menu.node.name.toLowerCase().endsWith(".md");
-  // 编辑器打不开的文件（exe / pdf / zip 等）才需要「打开方式」
-  const needsOpenWith = !!menu.node && !menu.node.isDir && !isTextEditable(menu.node.name);
+  // 「打开方式…」对所有文件都可用（像 Windows 右键菜单那样，任何文件都能换程序打开）
+  const isFileNode = !!menu.node && !menu.node.isDir;
   return (
     <div
       ref={ref}
@@ -344,7 +360,7 @@ function ContextMenu({
               }}
             />
           )}
-          {needsOpenWith && (
+          {isFileNode && (
             <button className={MENU_ITEM} onClick={() => onOpenWith(menu)}>
               <AppWindow size={15} /> 打开方式…
             </button>
@@ -383,7 +399,6 @@ function TreeNode({
   setEdit,
   refresh,
   loadDir,
-  onOpenWith,
 }: {
   node: FileNode;
   depth: number;
@@ -395,8 +410,6 @@ function TreeNode({
   refresh: () => void;
   /** 目录首次展开时按需加载其子层 */
   loadDir: (dirPath: string) => void;
-  /** 编辑器打不开的文件：交给「打开方式」对话框 */
-  onOpenWith: (node: FileNode) => void;
 }) {
   if (node.isDir) {
     // 文件夹重命名：替换为内联输入（与文件节点一致），确认后落盘并刷新
@@ -459,7 +472,6 @@ function TreeNode({
             setEdit={setEdit}
             refresh={refresh}
             loadDir={loadDir}
-            onOpenWith={onOpenWith}
           />
         ))}
         {inEdit?.path === node.path && inEdit.mode !== "rename" && (
@@ -503,12 +515,13 @@ onClick={() => {
           void openDocByPath(node.path, node.name);
           return;
         }
-        // 二进制/资源文件不支持在编辑器内编辑：弹「打开方式」对话框让用户选程序
-        onOpenWith(node);
+        // 编辑器不认的文件（exe / pdf / 无后缀…）交给系统：有关联程序就用默认程序打开，
+        // 没有关联时 Windows 会自己弹出「选择应用」框让用户选
+        backend.openPath(node.path).catch((e: unknown) => alert(`打开失败：${e}`));
       }}
       onDoubleClick={() => {
-        // 双击重命名只对文本文件生效：二进制文件的单击已打开「打开方式」，
-        // 双击再触发重命名会与弹窗打架
+        // 双击重命名只对文本文件生效：非文本文件的单击已交给系统打开，
+        // 双击再触发重命名会与系统弹窗打架
         if (isTextEditable(node.name)) setEdit({ path: node.path, mode: "rename" });
       }}
       onContextMenu={(e) => {
@@ -654,8 +667,6 @@ export default function FileTree({ onRecentHeightChange }: { onRecentHeightChang
   const [draftMenu, setDraftMenu] = useState<{ x: number; y: number; docId: string } | null>(null);
   /** 导出完成提示：待打开的导出文件路径 */
   const [exportedPath, setExportedPath] = useState<string | null>(null);
-  /** 「打开方式」对话框目标：编辑器打不开的文件 */
-  const [openWithTarget, setOpenWithTarget] = useState<{ path: string; name: string } | null>(null);
 
 
   useEffect(() => {
@@ -1003,7 +1014,6 @@ export default function FileTree({ onRecentHeightChange }: { onRecentHeightChang
             setEdit={setEdit}
             refresh={refresh}
             loadDir={loadDir}
-            onOpenWith={(node) => setOpenWithTarget({ path: node.path, name: node.name })}
           />
         ))}
         {!loading && visibleTree.length === 0 && !inEdit && (
@@ -1052,7 +1062,8 @@ export default function FileTree({ onRecentHeightChange }: { onRecentHeightChang
           onOpenWith={(m) => {
             setMenu(null);
             if (!m.node) return;
-            setOpenWithTarget({ path: m.node.path, name: m.node.name });
+            // 始终拉起系统「选择应用」框（不限于无关联格式）
+            backend.openWith(m.node.path).catch((e: unknown) => alert(`打开失败：${e}`));
           }}
           onDelete={(m) => {
             setMenu(null);
@@ -1089,13 +1100,6 @@ export default function FileTree({ onRecentHeightChange }: { onRecentHeightChang
             setExportedPath(null);
           }}
           onClose={() => setExportedPath(null)}
-        />
-      )}
-      {openWithTarget && (
-        <OpenWithDialog
-          path={openWithTarget.path}
-          name={openWithTarget.name}
-          onClose={() => setOpenWithTarget(null)}
         />
       )}
     </div>
