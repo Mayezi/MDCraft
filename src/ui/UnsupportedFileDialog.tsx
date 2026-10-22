@@ -1,5 +1,5 @@
-// 「此文件不支持直接打开」弹窗：图片 / 程序 / 无扩展名等文件无法在编辑器里按文本查看，
-// 这里给出明确说明，并提供「选择打开方式…」入口（拉起系统原生的「打开方式」框）。
+// 「这个文件打不开」弹窗：图片 / 程序 / 无扩展名等文件不是文本，MDCraft 编辑不了。
+// 文案按「用户不关心格式术语」的原则写：先说清是谁打不开、为什么，再给出下一步动作。
 
 import { FileWarning } from "lucide-react";
 import * as backend from "../lib/backend";
@@ -16,15 +16,15 @@ export default function UnsupportedFileDialog() {
     <ConfirmDialog
       open
       icon={<FileWarning size={17} />}
-      title="此文件不支持直接打开"
+      title="无法用 MDCraft 打开"
       description={
         <>
-          「{name}」不是可编辑的文本文件（图片、程序、无扩展名等），
-          无法在编辑器中按文本查看。可以选择用其它程序打开。
+          「{name}」不是文本文件，MDCraft 编辑不了它。可以换一个应用打开。
         </>
       }
       detail={path}
       confirmText="选择打开方式…"
+      cancelText="知道了"
       onCancel={closeUnsupportedFile}
       onConfirm={() => {
         const target = path;
