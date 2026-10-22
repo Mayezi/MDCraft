@@ -72,28 +72,32 @@ export default function ConfirmDialog({
         aria-modal="true"
         aria-labelledby={titleId}
         tabIndex={-1}
-        className="modal-card w-[520px] max-w-full overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--bg)] shadow-[0_20px_50px_rgba(0,0,0,0.28)] outline-none"
+        className="modal-card w-[480px] max-w-full overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--bg)] shadow-[0_20px_50px_rgba(0,0,0,0.28)] outline-none"
       >
-        <div className="flex items-start gap-3.5 px-5 pt-5 pb-4">
-          <span
-            className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full ${
-              danger
-                ? "bg-[var(--danger)]/12 text-[var(--danger)]"
-                : "bg-[var(--accent-soft)] text-[var(--accent)]"
-            }`}
-          >
-            {icon ?? <AlertTriangle size={18} />}
-          </span>
-          <div className="min-w-0 flex-1 pt-0.5">
-            <h2 id={titleId} className="text-[15px] font-semibold leading-snug text-[var(--fg-strong)]">
+        {/* 标题与图标一行，正文另起整行：正文不与图标并排，可用宽度更宽 */}
+        <div className="px-5 pt-5 pb-4">
+          <div className="flex items-start gap-3">
+            <span
+              className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full ${
+                danger
+                  ? "bg-[var(--danger)]/12 text-[var(--danger)]"
+                  : "bg-[var(--accent-soft)] text-[var(--accent)]"
+              }`}
+            >
+              {icon ?? <AlertTriangle size={18} />}
+            </span>
+            <h2
+              id={titleId}
+              className="min-w-0 flex-1 pt-1 text-[15px] font-semibold leading-snug text-[var(--fg-strong)]"
+            >
               {title}
             </h2>
-            {description && (
-              <div className="mt-1.5 text-[12.5px] leading-relaxed text-[var(--fg-soft)]">
-                {description}
-              </div>
-            )}
           </div>
+          {description && (
+            <div className="mt-3 text-[12.5px] leading-relaxed text-[var(--fg-soft)]">
+              {description}
+            </div>
+          )}
         </div>
 
         {detail && (
