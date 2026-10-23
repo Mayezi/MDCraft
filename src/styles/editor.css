@@ -14,6 +14,11 @@
     "Microsoft YaHei", monospace;
 }
 
+/* 空文档引导提示（新建草稿）：灰显，与正文区分 */
+.cm-placeholder {
+  color: var(--fg-faint);
+}
+
 .cm-editor {
   height: 100%;
   /* 主编辑区纯色纸面背景：独立于界面底色的 --editor-bg（每主题定义精致纯色），

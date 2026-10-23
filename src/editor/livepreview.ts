@@ -194,10 +194,13 @@ function buildDecorations(view: EditorView): LiveDecorations {
         const ln = state.doc.lineAt(from);
         deco.push(L_H[hLevel - 1].range(ln.from));
         deco.push(gutterOf(`h${hLevel}`).range(ln.from));
-        // 光标进入标题时显示 # / setext 下划线源码；移出恢复纯渲染
-        const headingActive = touchesSelection(sel, from, to, 0);
-        if (name.startsWith("ATX")) {
-          const m = /^#{1,6} +/.exec(ln.text);
+        // 光标进入标题文字（标记之后）才显示 # / setext 下划线源码；
+        // 光标落在行首标记区（如打开文件时）保持纯渲染，实现「打开不聚焦」。
+        const isAtx = name.startsWith("ATX");
+        const m = isAtx ? /^#{1,6} +/.exec(ln.text) : null;
+        const markerEnd = m ? ln.from + m[0].length : from;
+        const headingActive = sel.ranges.some((r) => r.head >= markerEnd && r.head <= to);
+        if (isAtx) {
           if (m && !headingActive) pushHide(ln.from, ln.from + m[0].length);
         } else {
           // setext 下划线行（=== / ---）：标题被点击时整段显示源码

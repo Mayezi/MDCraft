@@ -8,6 +8,7 @@ import {
   dropCursor,
   highlightActiveLine,
   rectangularSelection,
+  placeholder,
   type Command,
 } from "@codemirror/view";
 import {
@@ -129,6 +130,8 @@ export function createExtensions(
     closeBrackets(),
     slashPanel(),
     lineClick,
+    // 空文档（新建草稿）引导：提示开始创作或按 / 唤起插入命令面板
+    placeholder("开始创作，或按 / 查看插入命令"),
     EditorView.lineWrapping,
     rectangularSelection(),
     EditorView.contentAttributes.of({

@@ -91,14 +91,13 @@ export default function EditorPane() {
   const getStateFor = (doc: DocFile): Parameters<typeof EditorView.prototype.setState>[0] => {
     let st = editorStates.get(doc.id);
     if (!st) {
-      // 打开已有文件时初始光标放到文档末尾，避免首行标题被光标触碰而显示源码态
-      // （livepreview 语义：光标触碰行内元素 → 显示该元素源码）；仅新建空草稿从首行开始输入。
-      const isNewEmptyDraft = !doc.path && doc.initialContent.length === 0;
-      const initialPos = isNewEmptyDraft ? 0 : doc.initialContent.length;
+      // 打开文件时初始光标放文档开头，避免触碰任何行内/块级元素而显示源码态
+      // （livepreview 语义：光标触碰元素 → 显示该元素源码）。只有用户点击、
+      // 或新建空草稿时才聚焦输入，打开已有文件保持纯预览。
       st = createState(doc.initialContent, settingsOf(storeRef.current.settings), [
         EditorView.updateListener.of((u) => onEditorUpdate(u.view, u)),
         imageAssets(ensureDocPath),
-      ], initialPos);
+      ]);
       editorStates.set(doc.id, st);
     }
     return st;
