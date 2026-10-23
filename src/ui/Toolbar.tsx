@@ -147,7 +147,7 @@ export default function Toolbar() {
       label: "帮助",
       icon: <HelpCircle size={13} />,
       build: () => [
-        { label: "欢迎使用 MDCraft", run: () => useStore.getState().openContent("欢迎使用 MDCraft.md", null, WELCOME) },
+        { label: "Markdown 语法速查", run: () => useStore.getState().openContent("Markdown 语法速查.md", null, WELCOME) },
         {
           label: "快捷键",
           items: [

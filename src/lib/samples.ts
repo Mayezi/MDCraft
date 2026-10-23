@@ -1,15 +1,15 @@
 // 浏览器模式下内置的示例文档（同时作为功能演示用例）
 
 export const WELCOME = `---
-title: 欢迎使用 MDCraft
-tags: [Markdown, 编辑器, 所见即所得]
+title: Markdown 语法速查
+tags: [Markdown, 语法速查, 所见即所得]
 ---
 
-# 欢迎使用 MDCraft
+# Markdown 语法速查
 
-一款**快**并且**好用**的所见即所得 Markdown 编辑器，底层采用 Tauri 2 + Rust + CodeMirror 6。
+MDCraft 支持全功能所见即所得 Markdown 排版。行内标记即时渲染，表格、公式、代码块点击即可直接编辑。
 
-行内标记实时渲染，表格、公式、图片等块级元素点击即可编辑 —— 所见即所得。本文档同时演示全部支持的语法。
+本文档汇总了 MDCraft 支持的全部 Markdown 语法与格式示例，供日常写作随时查阅。
 
 ## 标题：六级 ATX + Setext
 
@@ -121,5 +121,5 @@ $$
 `;
 
 export const SAMPLE_DOCS: { name: string; content: string }[] = [
-  { name: "欢迎使用 MDCraft.md", content: WELCOME },
+  { name: "Markdown 语法速查.md", content: WELCOME },
 ];
