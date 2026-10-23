@@ -80,6 +80,46 @@ def fib(n: int) -> int:
     return a
 \`\`\`
 
+## 图表与绘图（Mermaid / 流程图 / 时序图）
+
+支持 Mermaid 语法按需懒加载并实时渲染矢量图表，双击或点击「编辑代码」可直接修改：
+
+### 流程图（Flowchart）
+
+\`\`\`flowchart
+flowchart TD
+    Start([开始]) --> Input[/输入 Markdown 文本/]
+    Input --> Parse{解析语法树}
+    Parse -->|行内元素| Inline[行内实时渲染]
+    Parse -->|块级元素| Block[块级 Widget 接管]
+    Parse -->|图表语法| Diagram[Mermaid 矢量渲染]
+    Inline --> Finish([呈现优质排版])
+    Block --> Finish
+    Diagram --> Finish
+\`\`\`
+
+### 时序图（Sequence Diagram）
+
+\`\`\`sequence
+sequenceDiagram
+    actor 用户
+    participant 编辑器 as MDCraft
+    participant 内核 as Rust md-core
+    用户->>编辑器: 编辑文档内容
+    编辑器-->>用户: 实时所见即所得渲染
+    编辑器->>内核: 防抖触发原子写入
+    内核-->>编辑器: 保存成功通知
+\`\`\`
+
+### 架构图（Mermaid）
+
+\`\`\`mermaid
+graph LR
+    A[客户端 UI] -->|Tauri IPC| B(Rust 命令层)
+    B --> C[(文件系统)]
+    B --> D[ripgrep 搜索]
+\`\`\`
+
 ## 表格
 
 支持左 / 中 / 右三种对齐：

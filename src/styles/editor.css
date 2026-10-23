@@ -1041,6 +1041,116 @@
   border-color: var(--accent);
   box-shadow: 0 0 0 2px var(--accent-soft);
 }
+
+/* 表格工具栏（思源式）：单元格聚焦时浮现于该单元格上方（left/top 由 JS 按活动格摆位）；
+   半透明毛玻璃 + 入场动效，高级轻浮动卡 */
+.md-table-toolbar {
+  display: none;
+  position: absolute;
+  z-index: 20;
+  transform: translateY(-100%);
+  gap: 2px;
+  padding: 3px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: color-mix(in srgb, var(--bg) 86%, transparent);
+  backdrop-filter: blur(10px);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.12), 0 1px 2px rgba(0, 0, 0, 0.08);
+  user-select: none;
+}
+.md-table-wrapper.md-table-editing .md-table-toolbar {
+  display: flex;
+  animation: md-table-bar-in 0.13s ease-out;
+}
+@keyframes md-table-bar-in {
+  from {
+    opacity: 0;
+    transform: translateY(-100%) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(-100%);
+  }
+}
+.md-table-tool {
+  border: none;
+  background: transparent;
+  color: var(--fg-soft);
+  font-size: 12px;
+  line-height: 1;
+  padding: 5px 7px;
+  border-radius: 6px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.1s ease, color 0.1s ease;
+}
+.md-table-tool:hover {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+.md-table-tool:active {
+  scale: 0.94;
+}
+/* 对齐键的当前态：活动列正在使用的对齐方式高亮 */
+.md-table-tool-on {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+.md-table-tool-gap {
+  margin-left: 6px;
+  /* 分组间隔以细缝线暗示 */
+  box-shadow: -3px 0 0 -2.15px var(--border);
+}
+
+/* 行列拖拽抓手（Obsidian 式重排）：悬停浮现，点阵外观可拖 */
+.md-table-handle {
+  display: none;
+  position: absolute;
+  z-index: 30;
+  width: 14px;
+  height: 18px;
+  border-radius: 4px;
+  cursor: grab;
+  opacity: 0.55;
+  background-color: var(--bg);
+  background-image: radial-gradient(var(--fg-soft) 1.1px, transparent 1.4px);
+  background-size: 4.5px 5px;
+  background-position: center;
+  user-select: none;
+}
+.md-table-handle:hover {
+  opacity: 1;
+  background-color: var(--accent-soft);
+}
+/* 拖拽插入指示线（横=行边界，竖=列边界，几何由 JS 摆位） */
+.md-table-reorder-guide {
+  position: absolute;
+  z-index: 29;
+  background: var(--accent);
+  border-radius: 1px;
+  pointer-events: none;
+}
+/* 拖拽态：抓手光标 + 禁文本随拖选中 */
+.md-table-dragging,
+.md-table-dragging * {
+  cursor: grabbing !important;
+  user-select: none;
+}
+
+/* 列宽拖拽（思源式）：右缘热区光标；固定布局下解除内容宽钳制 */
+.md-table .md-col-resizer {
+  cursor: col-resize !important;
+}
+.md-table.md-table-fixed th,
+.md-table.md-table-fixed td {
+  max-width: none;
+}
+.md-table-resizing,
+.md-table-resizing * {
+  cursor: col-resize !important;
+  user-select: none;
+}
+
 .md-table th,
 .md-table td {
   border: 1px solid var(--table-border);
