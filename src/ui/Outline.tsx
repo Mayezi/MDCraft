@@ -59,7 +59,7 @@ function NodeView({
   return (
     <div>
       <div
-        className={`outline-row group flex items-center rounded-md pr-1.5 transition-colors duration-150 ${
+        className={`outline-row group flex items-center rounded pr-1.5 transition-colors duration-150 ${
           isCurrent ? "is-current bg-[var(--accent-soft)]" : "hover:bg-[var(--bg-hover)]"
         }`}
         style={
@@ -71,7 +71,7 @@ function NodeView({
       >
         {/* 当前项：左侧主色标条 */}
         {isCurrent && (
-          <span className="absolute left-0 top-[20%] h-[60%] w-[3px] rounded-r bg-[var(--accent)]" />
+          <span className="absolute left-0 top-[20%] h-[60%] w-[3px] rounded-r-sm bg-[var(--accent)]" />
         )}
         {/* 内容按层级缩进 */}
         <div className="flex min-w-0 flex-1 items-center" style={{ paddingLeft: (level - 1) * LEVEL_INDENT }}>
@@ -228,7 +228,8 @@ export default function Outline() {
           输入 / 快速插入标题层级。
         </div>
       ) : (
-        <div className="min-h-0 flex-1 overflow-y-auto px-1.5 py-1.5">
+        <div className="min-h-0 flex-1 overflow-y-auto px-1.5 pb-6 pt-1.5">
+          {/* 列表底部留白（pb-6）：最后一条不要贴着面板底边 */}
           {tree.map((node) => (
             <NodeView
               key={node.item.line}
