@@ -1143,26 +1143,33 @@
   word-break: break-all;
 }
 .md-diagram-edit-wrap {
-  padding: 12px;
+  padding: 10px 12px 12px;
   background: var(--code-bg);
+  border-top: 1px solid var(--code-border);
 }
 .md-diagram-textarea {
   width: 100%;
   min-height: 130px;
-  font-family: var(--font-mono, monospace);
+  font-family: var(--mono-font, ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace);
   font-size: 13px;
   line-height: 1.6;
+  tab-size: 2;
   border: 1px solid var(--border);
   border-radius: 6px;
-  padding: 8px 10px;
+  padding: 10px 12px;
   background: var(--bg);
   color: var(--fg);
   outline: none;
   resize: vertical;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, background-color 0.15s ease;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+}
+.md-diagram-textarea:hover {
+  border-color: color-mix(in srgb, var(--accent) 25%, var(--border));
 }
 .md-diagram-textarea:focus {
-  border-color: var(--accent);
-  box-shadow: 0 0 0 2px var(--accent-soft);
+  border-color: color-mix(in srgb, var(--accent) 55%, var(--border));
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 14%, transparent), 0 1px 2px rgba(0, 0, 0, 0.04);
 }
 
 /* 表格工具栏（思源式）：单元格聚焦时浮现于该单元格上方（left/top 由 JS 按活动格摆位）；
