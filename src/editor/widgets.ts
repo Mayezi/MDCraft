@@ -10,6 +10,7 @@ import type { Parser } from "@lezer/common";
 import katex from "katex";
 import { imageSrc } from "./image";
 import { openUrl } from "../lib/backend";
+import { notifySuccess } from "../lib/notify";
 import { codeHighlight } from "./code-highlight";
 import { FENCE_LANGS } from "./fence-lang";
 import {
@@ -1441,23 +1442,64 @@ export class CodeBlockWidget extends WidgetType {
     const panel = document.createElement("div");
     panel.className = "md-code-block md-gutter md-gutter-hover";
     panel.dataset.btype = "code";
-    const head = document.createElement("button");
-    head.type = "button";
+    const head = document.createElement("div");
     head.className = "md-code-head";
-    head.textContent = this.lang || "code";
-    head.title = "点击选择代码语言";
-    head.addEventListener("mousedown", (event) => {
+
+    const langBtn = document.createElement("button");
+    langBtn.type = "button";
+    langBtn.className = "md-code-lang-btn";
+    langBtn.innerHTML = `<span>${this.lang || "code"}</span><span class="md-code-lang-arrow">▾</span>`;
+    langBtn.title = "点击选择代码语言";
+    langBtn.addEventListener("mousedown", (event) => {
       // 阻止按钮抢焦点导致编辑器滚动，避免下拉框刚展开就被 scroll 逻辑关掉
       event.preventDefault();
       event.stopPropagation();
     });
-    head.addEventListener("click", (event) => {
+    langBtn.addEventListener("click", (event) => {
       event.preventDefault();
       event.stopPropagation();
-      openCodeLangMenu(view, this.start, head, this.lang, () =>
+      openCodeLangMenu(view, this.start, langBtn, this.lang, () =>
         focusCodeBlockEditor(view, this.start),
       );
     });
+
+    const actions = document.createElement("div");
+    actions.className = "md-code-actions";
+
+    const copyBtn = document.createElement("button");
+    copyBtn.type = "button";
+    copyBtn.className = "md-code-copy-btn";
+    const copySvg = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>`;
+    const checkSvg = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`;
+    copyBtn.innerHTML = `${copySvg}<span>复制</span>`;
+    copyBtn.title = "复制代码";
+
+    let resetTimer: ReturnType<typeof setTimeout> | null = null;
+    copyBtn.addEventListener("mousedown", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+    });
+    copyBtn.addEventListener("click", async (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const text = readText();
+      try {
+        await navigator.clipboard.writeText(text);
+        copyBtn.innerHTML = `${checkSvg}<span>已复制</span>`;
+        copyBtn.classList.add("is-copied");
+        notifySuccess("代码已复制到剪贴板");
+        if (resetTimer) clearTimeout(resetTimer);
+        resetTimer = setTimeout(() => {
+          copyBtn.innerHTML = `${copySvg}<span>复制</span>`;
+          copyBtn.classList.remove("is-copied");
+        }, 1500);
+      } catch {
+        // clipboard fallback
+      }
+    });
+
+    actions.appendChild(copyBtn);
+    head.append(langBtn, actions);
     const edit = document.createElement("div");
     edit.className = "md-code-edit";
     edit.contentEditable = "true";
