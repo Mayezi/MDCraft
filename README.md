@@ -1,6 +1,6 @@
 # MDCraft
 
-所见即所得 Markdown 编辑器。**快**（Tauri 2 + Rust，目标 <15MB）且**好用**（块级实时渲染）。
+所见即所得 Markdown 编辑器。**快**（Tauri 2 + Rust，目标 <5MB）且**好用**（块级实时渲染）。
 
 > 架构要点：Rust 核心与桌面壳解耦；编辑器内核基于 CodeMirror 6 decoration 实现块级实时渲染，单文档无预览窗分离。
 >
@@ -37,8 +37,7 @@ pnpm tauri build
 
 - Node.js ≥ 18、pnpm
 - Rust ≥ 1.88（`rustup` msvc 工具链）
-- **Visual Studio Build Tools（含 "使用 C++ 的桌面开发" 工作负载）** —— Rust msvc 目标链接 `link.exe` 必需。
-  本机已安装 VS Build Tools 17.14（MSVC 14.44 + Windows SDK 10.0.26100），`cargo check --workspace` 与 `cargo build -p mdcraft` 均验证通过。
+- Visual Studio Build Tools（含 "使用 C++ 的桌面开发" 工作负载）
 
 ## 目录结构
 
@@ -113,11 +112,7 @@ mdcraft/
 
 **导出**：独立 HTML（内联样式 + KaTeX 自动渲染公式），入口在文件树右键（草稿在标签右键）；PDF 等格式预留。
 
-**更新**：`tauri-plugin-updater` + minisign 签名校验，产物托管 GitHub Releases，Actions 流水线自动构建发布。启动后静默检查（可在设置 → 更新关闭），发现新版本时右下角提示；更新包后台下载，下载期间可继续编辑，下完再确认安装（安装前自动保存未保存内容）。
-
-**文件关联**（Windows）：NSIS 安装包注册 `.md` / `.markdown` / `.mdx` 与 MDCraft 的关联 —— 双击直接用 MDCraft 打开，资源管理器里的文件图标也换成应用图标。安装后若系统里已有其它 Markdown 编辑器的默认项，Windows 会保留用户的选择，可在「右键 → 打开方式 → 始终使用此应用」里切换。应用为单实例：已运行时再双击文件会在当前窗口开成新标签页，不会另开窗口。
-
-**Rust 后端**（已验证：`cargo check` + `cargo build` 通过）
+**Rust 后端**
 - 原子写（tmp+fsync+rename）、目录树、文件监听（notify 去抖批量推送）、删除走系统回收站
 
 ## 路线图
