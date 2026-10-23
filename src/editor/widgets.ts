@@ -98,10 +98,9 @@ export function tableRangeAt(state: EditorState, start: number): { from: number;
   return { from: n.from, to: n.to };
 }
 
-/** 表格挂载的全局监听清理表（widget DOM 被销毁时移除 scroll / pointerdown 监听） */
-const scrollCleanups = new WeakMap<HTMLElement, () => void>();
+const tableCleanups = new WeakMap<HTMLElement, () => void>();
 
-/** GFM 表格交互件（块级 widget，StateField 提供） */
+/** GFM 表格轻量渲染与单元格编辑件（块级 widget，StateField 提供） */
 export class TableWidget extends WidgetType {
   constructor(
     readonly src: string,
@@ -113,29 +112,18 @@ export class TableWidget extends WidgetType {
   eq(other: TableWidget) {
     return other.start === this.start;
   }
-  /** 装饰移除（widget DOM 销毁）时清理工具栏重锚的 capture scroll 监听 */
-  destroy(dom: Node) {
-    const el = dom as HTMLElement;
-    scrollCleanups.get(el)?.();
-    scrollCleanups.delete(el);
-  }
   toDOM(view: EditorView) {
     const model = parseTableModel(this.src);
-    // 写回后的文档文本基准：resync 以它核对是否有外部改动
     let lastSrc = this.src;
-    // 活动单元格（工具栏行列 / 对齐操作的基准）；focusin 更新
-    let act: { r: number; c: number } | null = null;
 
     const wrap = document.createElement("div");
     wrap.className = "md-table-wrapper md-gutter md-gutter-hover";
     wrap.dataset.btype = "table";
-    const bar = document.createElement("div");
-    bar.className = "md-table-toolbar";
     const table = document.createElement("table");
     table.className = "md-table";
     const tbody = document.createElement("tbody");
     table.append(tbody);
-    wrap.append(bar, table);
+    wrap.append(table);
 
     const allCells = () =>
       Array.from(tbody.querySelectorAll<HTMLElement>("th[contenteditable],td[contenteditable]"));
@@ -149,36 +137,6 @@ export class TableWidget extends WidgetType {
     const cellFrom = (t: EventTarget | null) => {
       const el = t instanceof Element ? t.closest("th,td") : null;
       return el && wrap.contains(el) ? (el as HTMLElement) : null;
-    };
-
-    // ---- 列宽（思源式）：默认自动布局；首次拖列宽时把实测像素固化，
-    // 切换 table-layout:fixed + <colgroup> 接管。列宽是会话级装饰、不写回
-    // Markdown（纯文本语法无列宽表达，思源导出同样丢弃）——重建走 renderAll 复原 ----
-    let widths: number[] | null = null;
-    const applyWidths = () => {
-      if (!widths) return;
-      table.style.tableLayout = "fixed";
-      table.classList.add("md-table-fixed");
-      let cg = table.querySelector("colgroup");
-      if (!cg) {
-        cg = document.createElement("colgroup");
-        table.insertBefore(cg, tbody);
-      }
-      cg.replaceChildren(
-        ...widths.map((w) => {
-          const col = document.createElement("col");
-          col.style.width = `${w}px`;
-          return col;
-        }),
-      );
-    };
-    const ensureWidths = () => {
-      if (widths) return;
-      widths = Array.from(
-        (tbody.children[0] as HTMLTableRowElement).children,
-        (c) => Math.round(c.getBoundingClientRect().width),
-      );
-      applyWidths();
     };
 
     /** 聚焦并放置光标（atEnd = false 置于行首） */
@@ -199,41 +157,21 @@ export class TableWidget extends WidgetType {
         | undefined;
       if (cell) focusCell(cell);
     };
-    /** 工具栏跟随活动单元格：浮于被点单元格上方（水平钳制在表格内），不再恒定右上角 */
-    const placeToolbar = () => {
-      if (!act) return;
-      const tr = tbody.children[act.r] as HTMLTableRowElement | undefined;
-      const cell = tr?.children[Math.max(0, Math.min(act.c, (tr?.children.length ?? 1) - 1))] as
-        | HTMLElement
-        | undefined;
-      if (!cell) return;
-      const wr = wrap.getBoundingClientRect();
-      const cr = cell.getBoundingClientRect();
-      bar.style.left = `${Math.max(0, Math.min(cr.left - wr.left, wr.width - bar.offsetWidth))}px`;
-      bar.style.top = `${cr.top - wr.top}px`;
-    };
-    // 滚动时工具栏随活动格重锚（capture 捕获内部滚动容器的 scroll 事件；
-    // 清理表挂 WeakMap，装饰销毁时移除）
-    const onScroller = () => placeToolbar();
-    document.addEventListener("scroll", onScroller, { capture: true, passive: true });
-    // 点击表格外的任何位置都结束单元格编辑：不能只依赖 focusout ——
-    // 代码块标题栏等会 preventDefault 保焦点的控件不会让单元格失焦，
-    // 仅靠 focusout 会让源码态一直残留。
+
+    // 点击表格外的任何位置都结束单元格编辑
     const onDocPointerDown = (e: PointerEvent) => {
       const cell = editingCell;
       if (!cell) return;
       const target = e.target;
       if (!(target instanceof Node) || cell.contains(target) || wrap.contains(target)) return;
       finishEdit(cell);
-      // 目标不接收焦点（代码块标题栏、页面空白等）时也要把焦点从已渲染的单元格上移走，
-      // 否则单元格仍处于聚焦态却不再走编辑逻辑，后续按键会改到渲染 DOM。
       if (document.activeElement === cell) cell.blur();
     };
     document.addEventListener("pointerdown", onDocPointerDown, true);
-    scrollCleanups.set(wrap, () => {
-      document.removeEventListener("scroll", onScroller, { capture: true });
+    tableCleanups.set(wrap, () => {
       document.removeEventListener("pointerdown", onDocPointerDown, true);
     });
+
     /** 光标是否贴单元格文本边界（用于左右方向键跨界） */
     const caretEdge = (el: HTMLElement, end: boolean) => {
       const sel = document.getSelection();
@@ -244,7 +182,7 @@ export class TableWidget extends WidgetType {
       probe.selectNodeContents(el);
       return r.compareBoundaryPoints(end ? Range.END_TO_END : Range.START_TO_START, probe) >= 0;
     };
-    /** 多行单元格（<br> 渐染）辅助：总行数与光标所在行号（0 起） */
+    /** 多行单元格辅助：总行数与光标所在行号（0 起） */
     const lineCount = (el: HTMLElement) => el.querySelectorAll("br").length + 1;
     const caretLine = (el: HTMLElement) => {
       const sel = document.getSelection();
@@ -254,22 +192,20 @@ export class TableWidget extends WidgetType {
       const pre = document.createRange();
       pre.selectNodeContents(el);
       pre.setEnd(r.startContainer, r.startOffset);
-      // 光标前的 <br> 数即行号（单元格内容小，克隆开销可忽略）
       return pre.cloneContents().querySelectorAll("br").length;
     };
 
     /** 跳出表格：光标移到表格下一行行首（表格在文末时补一个换行），焦点交还编辑器 */
-    const exitBelow = () => {      const range = tableRangeAt(view.state, this.start);
+    const exitBelow = () => {
+      const range = tableRangeAt(view.state, this.start);
       if (!range) return;
       if (range.to >= view.state.doc.length) {
-        // 表格已是文档末尾：追加空行并落位
         view.dispatch({
           changes: { from: view.state.doc.length, insert: "\n" },
           selection: { anchor: view.state.doc.length + 1 },
           scrollIntoView: true,
         });
       } else {
-        // 表格行结尾必有 \n，下一行行首就是安全落点（块外可见行）
         view.dispatch({ selection: { anchor: range.to + 1 }, scrollIntoView: true });
       }
       view.focus();
@@ -286,17 +222,14 @@ export class TableWidget extends WidgetType {
       }
       view.focus();
     };
+
     // ---- 单元格渲染 / 源码编辑态 ----
-    // 未聚焦：按行内 Markdown 渲染（加粗 / 链接 / 行内代码 / 公式等）；
-    // 聚焦：切回纯文本源码直接编辑，失焦后重新渲染。与正文「光标进入显源码」一致。
     const editingCells = new WeakSet<HTMLElement>();
     let editingCell: HTMLElement | null = null;
     const renderCell = (cell: HTMLElement, text: string) => {
       cell.replaceChildren();
       renderInlineMarkdown(cell, text);
     };
-    /** 源码态：模型里的换行（\n 或 <br>）还原为单元格内真实换行。
-     *  文本节点 / <br> 都标注源码区间，点击渲染态时据此精确落位（不再靠源码重排后的几何位置猜）。 */
     const sourceFragment = (text: string) => {
       const frag = document.createDocumentFragment();
       const src = text.replace(/\r\n?/g, "\n");
@@ -319,7 +252,6 @@ export class TableWidget extends WidgetType {
       addText(last, src.length);
       return frag;
     };
-    /** 源码偏移 → 单元格内 DOM 光标 */
     const setCaret = (cell: HTMLElement, offset: number) => {
       const point = sourcePointAtOffset(cell, offset);
       const sel = document.getSelection();
@@ -331,8 +263,6 @@ export class TableWidget extends WidgetType {
       sel.addRange(rng);
       return true;
     };
-    /** 聚焦进入源码态时若选区还在单元格外（键盘/程序聚焦、从代码块跳入），
-     *  显式收拢到末尾，避免继承外部整段选区导致一次删除清空整格 */
     const normalizeCaret = (cell: HTMLElement, text: string) => {
       const sel = document.getSelection();
       if (sel && sel.rangeCount > 0 && cell.contains(sel.getRangeAt(0).startContainer)) return;
@@ -352,7 +282,7 @@ export class TableWidget extends WidgetType {
       editingCells.delete(cell);
       if (editingCell === cell) editingCell = null;
       cell.classList.remove("md-table-cell-editing");
-      if (!cell.isConnected) return; // renderAll / 文档重建已丢弃旧 DOM
+      if (!cell.isConnected) return;
       const rc = idxOf(cell);
       if (!rc) return;
       model.rows[rc.r][rc.c] = (cell.innerText ?? "").replace(/\n+$/, "");
@@ -360,7 +290,7 @@ export class TableWidget extends WidgetType {
       sync();
     };
 
-    /** 按模型整表重建（初建 / 结构操作 / resync 共用） */
+    /** 按模型整表重建 */
     const renderAll = () => {
       tbody.textContent = "";
       model.rows.forEach((row, r) => {
@@ -375,17 +305,14 @@ export class TableWidget extends WidgetType {
         });
         tbody.appendChild(tr);
       });
-      applyWidths(); // 复原列宽组（结构操作 / resync 重建后仍保持）
     };
     renderAll();
 
-    /** 模型 → 序列化 GFM → 写回文档（装饰重建 eq(start) 判等 → DOM 不动） */
+    /** 模型 → 序列化 GFM → 写回文档 */
     const sync = () => {
       const range = tableRangeAt(view.state, this.start);
       if (!range) return;
       const text = serializeTable(model);
-      // 行数漂移护栏：写回前后允许 ±1 行（加/删行），再大说明模型与文档区间
-      // 已失同步（异常合并/误认节点），放弃本次写回，保住文档其余内容
       const curLines = view.state.sliceDoc(range.from, range.to).split("\n").length;
       if (Math.abs(curLines - text.split("\n").length) > 1) return;
       if (view.state.sliceDoc(range.from, range.to) !== text) {
@@ -394,7 +321,7 @@ export class TableWidget extends WidgetType {
       lastSrc = text;
     };
 
-    /** 外部改动（undo / 查找替换）后按文档核对重渲染，焦点随参数回收 */
+    /** 外部改动（undo / 查找替换）后按文档核对重渲染 */
     const resync = (focus?: { r: number; c: number }) => {
       const range = tableRangeAt(view.state, this.start);
       if (!range) return;
@@ -409,105 +336,22 @@ export class TableWidget extends WidgetType {
       view.requestMeasure();
     };
 
-    // ---- 工具栏（思源式）：随点击的单元格浮现，操作以活动格为基准 ----
-    // 对齐键的当前态（活动列的对齐即键的高亮态）
-    const alignBtns: Partial<Record<string, HTMLButtonElement>> = {};
-    const markAlign = () => {
-      if (!act) return;
-      const cur = model.aligns[act.c] ?? "left";
-      for (const [k, b] of Object.entries(alignBtns)) b?.classList.toggle("md-table-tool-on", k === cur);
-    };
-    const addTool = (label: string, tip: string, gap: boolean, run: () => void): HTMLButtonElement => {
-      const b = document.createElement("button");
-      b.type = "button";
-      b.className = "md-table-tool" + (gap ? " md-table-tool-gap" : "");
-      b.textContent = label;
-      b.title = tip;
-      b.addEventListener("mousedown", (e) => e.preventDefault()); // 保活动格焦点
-      b.addEventListener("click", () => {
-        if (act) run();
-      });
-      bar.appendChild(b);
-      return b;
-    };
-    /** 结构操作：改模型 → renderAll → 焦点落新格 → 写回 */
-    const insertRow = (base: { r: number; c: number }, above: boolean) => {
-      if (above && base.r === 0) return; // 首行即表头，之上不加行
-      const at = above ? base.r : base.r + 1;
+    const insertRow = (base: { r: number; c: number }) => {
+      const at = base.r + 1;
       model.rows.splice(at, 0, Array.from({ length: model.rows[0].length }, () => ""));
       renderAll();
       focusAt({ r: at, c: base.c });
       sync();
       view.requestMeasure();
     };
-    const deleteRow = (base: { r: number; c: number }) => {
-      if (model.rows.length <= 1) return; // 只剩表头：交给「删表」
-      model.rows.splice(base.r, 1);
-      renderAll();
-      focusAt({ r: Math.min(base.r, model.rows.length - 1), c: base.c });
-      sync();
-      view.requestMeasure();
-    };
-    const insertCol = (base: { r: number; c: number }, left: boolean) => {
-      const at = Math.min(model.rows[0].length, base.c + (left ? 0 : 1));
-      model.aligns.splice(at, 0, model.aligns[base.c] ?? "left");
-      if (widths) widths.splice(at, 0, widths[Math.min(base.c, widths.length - 1)]);
-      for (const row of model.rows) row.splice(at, 0, "");
-      renderAll();
-      focusAt({ r: base.r, c: at });
-      sync();
-      view.requestMeasure();
-    };
-    const deleteCol = (base: { r: number; c: number }) => {
-      if (model.rows[0].length <= 1) return; // 最后一列：交给「删表」
-      model.aligns.splice(base.c, 1);
-      widths?.splice(base.c, 1);
-      for (const row of model.rows) row.splice(base.c, 1);
-      renderAll();
-      focusAt({ r: base.r, c: Math.min(base.c, model.rows[0].length - 1) });
-      sync();
-      view.requestMeasure();
-    };
-    const setAlign = (mode: string) => {
-      if (!act) return;
-      model.aligns[act.c] = mode;
-      for (const tr of Array.from(tbody.children)) {
-        const cell = tr.children[act.c] as HTMLElement | undefined;
-        if (cell) cell.style.textAlign = mode;
-      }
-      markAlign();
-      sync();
-      placeToolbar();
-    };
-    const removeTable = () => {
-      const range = tableRangeAt(view.state, this.start);
-      if (range) view.dispatch({ changes: { from: range.from, to: range.to, insert: "" } });
-    };
-    addTool("＋列", "在活动列左侧插入一列", false, () => insertCol(act!, true));
-    addTool("列＋", "在活动列右侧插入一列", false, () => insertCol(act!, false));
-    addTool("＋行", "在活动行上方插入一行", false, () => insertRow(act!, true));
-    addTool("行＋", "在活动行下方插入一行（Enter 同）", false, () => insertRow(act!, false));
-    addTool("删行", "删除活动行", false, () => deleteRow(act!));
-    addTool("删列", "删除活动列", false, () => deleteCol(act!));
-    alignBtns.left = addTool("左", "活动列左对齐", true, () => setAlign("left"));
-    alignBtns.center = addTool("中", "活动列居中", false, () => setAlign("center"));
-    alignBtns.right = addTool("右", "活动列右对齐", false, () => setAlign("right"));
-    addTool("删表", "删除整个表格（Shift+Enter 可跳出表格）", true, removeTable);
 
-    // ---- 事件（委托在 wrap 上：renderAll 重建后依旧生效） ----
+    // 事件监听
     wrap.addEventListener("focusin", (e) => {
       const cell = e.target instanceof Element ? cellFrom(e.target) : null;
       const rc = cell ? idxOf(cell) : null;
       if (cell && rc) {
-        beginEdit(cell); // 键盘 / 程序聚焦也切到源码态
+        beginEdit(cell);
         normalizeCaret(cell, model.rows[rc.r][rc.c]);
-        act = rc;
-        wrap.classList.add("md-table-editing");
-        markAlign(); // 对齐键高亮态随新活动列刷新
-        placeToolbar(); // 工具栏跟随新活动格
-        // CM 选区同步到表内：undo/redo 的选区映射与滚动以 CM 选区为准，
-        // 否则 Ctrl+Z 会把光标/视口拉回进表前的旧位置（表现为「跳到顶部」）。
-        // 此时焦点仍在单元格 DOM 上，CM 选区只是记账，无可见副作用
         const range = tableRangeAt(view.state, this.start);
         if (range) {
           view.dispatch({
@@ -519,14 +363,9 @@ export class TableWidget extends WidgetType {
     wrap.addEventListener("focusout", (e) => {
       const cell = e.target instanceof Element ? cellFrom(e.target) : null;
       if (cell && (!(e.relatedTarget instanceof Node) || !cell.contains(e.relatedTarget))) {
-        finishEdit(cell); // 失焦提交并恢复渲染态
-      }
-      if (!(e.relatedTarget instanceof Node) || !wrap.contains(e.relatedTarget)) {
-        wrap.classList.remove("md-table-editing");
-        act = null;
+        finishEdit(cell);
       }
     });
-    // 点击渲染态单元格 → 先切源码再落光标（不依赖浏览器对渲染 DOM 的默认光标定位）
     wrap.addEventListener("pointerdown", (e) => {
       const link = e.target instanceof Element ? e.target.closest("[data-href]") : null;
       if (link && (e.ctrlKey || e.metaKey)) {
@@ -537,11 +376,9 @@ export class TableWidget extends WidgetType {
       }
       const cell = cellFrom(e.target);
       if (!cell || editingCells.has(cell)) return;
-      // 先在渲染态 DOM 上把点击位置映射回源码偏移（文本节点带源码区间标注），
-      // 再切源码并落位；否则源码重排后按几何位置猜会偏到标记/相邻字符。
       const srcOffset = sourceOffsetAtPoint(cell, e.clientX, e.clientY);
       beginEdit(cell);
-      e.preventDefault(); // 手动聚焦 / 落位，避免旧渲染节点被移除后默认焦点丢失
+      e.preventDefault();
       cell.focus();
       if (srcOffset == null || !setCaret(cell, srcOffset)) {
         const sel = document.getSelection();
@@ -554,8 +391,6 @@ export class TableWidget extends WidgetType {
         }
       }
     });
-    // 单元格输入 → 模型 → 写回文档（同公式浮层：不等 IME 组合收尾，实写实算）。
-    // 读回用 innerText：<br> 还原为 \n（textContent 会丢失换行边界）
     wrap.addEventListener("input", (e) => {
       const cell = cellFrom(e.target);
       if (!cell || !editingCells.has(cell)) return;
@@ -563,14 +398,13 @@ export class TableWidget extends WidgetType {
       if (!rc) return;
       model.rows[rc.r][rc.c] = (cell.innerText ?? "").replace(/\n+$/, "");
       sync();
-      placeToolbar(); // 输入使单元格宽度变化 → 工具栏跟随
     });
     wrap.addEventListener("paste", (e) => {
       const cell = cellFrom(e.target);
       if (!cell || !editingCells.has(cell)) return;
       const text = e.clipboardData?.getData("text/plain");
       if (typeof text !== "string") return;
-      e.preventDefault(); // 多行粘贴保留换行（序列化时统一转 <br>，Excel 复制带尾空行的场景去首尾）
+      e.preventDefault();
       const lines = text.replace(/\r\n/g, "\n").replace(/^\n+|\n+$/g, "").split("\n");
       lines.forEach((line, i) => {
         if (i) document.execCommand("insertLineBreak");
@@ -580,26 +414,22 @@ export class TableWidget extends WidgetType {
     wrap.addEventListener("keydown", (e) => {
       const cell = cellFrom(e.target);
       if (!cell || !editingCells.has(cell)) return;
-      if (e.isComposing || e.keyCode === 229) return; // IME 组合中不劫持按键
+      if (e.isComposing || e.keyCode === 229) return;
       const rc = idxOf(cell);
       if (!rc) return;
       const mod = e.ctrlKey || e.metaKey;
-      // 撤销 / 重做转给 CM 历史：contenteditable 原生 undo 只改 DOM，
-      // 会破坏「DOM ↔ 文档」同步；拦截后按文档 resync 校准 + 焦点回收
       if (mod && !e.altKey && /^[zy]$/i.test(e.key)) {
         e.preventDefault();
         const wantRedo = e.shiftKey || e.key.toLowerCase() === "y";
         if (wantRedo ? redo(view) : undo(view)) {
           resync(rc);
-          // 表格已随文档变化被整体重建时（原 widget DOM 已失联），焦点交还编辑器；
-          // undo 会把 CM 选区映射到实际撤销处，不会乱跳
           if (!wrap.isConnected) view.focus();
         }
         return;
       }
       switch (e.key) {
         case "Tab": {
-          e.preventDefault(); // 行内换格；末格 Tab 追加一行回首列
+          e.preventDefault();
           const flat = allCells();
           const ni = flat.indexOf(cell) + (e.shiftKey ? -1 : 1);
           if (ni >= 0 && ni < flat.length) {
@@ -616,21 +446,18 @@ export class TableWidget extends WidgetType {
         case "Enter": {
           e.preventDefault();
           if (e.altKey) {
-            // Alt+Enter：单元格内换行（GFM 序列化为 <br>，导出/跨平台结构不丢）
             document.execCommand("insertLineBreak");
             break;
           }
           if (e.shiftKey) {
-            // Shift+Enter 跳出表格：落位表格下一行，焦点交还编辑器
             exitBelow();
             break;
           }
-          // Enter 新起一行：当前行下方插行并落同列（Notion/Excel 式）
-          insertRow(rc, false);
+          insertRow(rc);
           break;
         }
         case "ArrowLeft": {
-          if (!caretEdge(cell, false)) break; // 光标贴文本左缘才跨格
+          if (!caretEdge(cell, false)) break;
           e.preventDefault();
           if (rc.c > 0) {
             focusAt({ r: rc.r, c: rc.c - 1 });
@@ -651,245 +478,37 @@ export class TableWidget extends WidgetType {
           break;
         }
         case "ArrowUp": {
-          if (caretLine(cell) > 0) break; // 多行单元格：光标先在本格各行间移动
+          if (caretLine(cell) > 0) break;
           e.preventDefault();
           if (rc.r > 0) {
-            focusAt({ r: rc.r - 1, c: rc.c }); // 光标向上 → 跨行
+            focusAt({ r: rc.r - 1, c: rc.c });
           } else {
-            exitAbove(); // 已在表头首行 → 退到表格上方一行（方向键可进出表格）
+            exitAbove();
           }
           break;
         }
         case "ArrowDown": {
-          if (caretLine(cell) < lineCount(cell) - 1) break; // 多行单元格：光标先在本格各行间移动
+          if (caretLine(cell) < lineCount(cell) - 1) break;
           e.preventDefault();
           if (rc.r < model.rows.length - 1) {
-            focusAt({ r: rc.r + 1, c: rc.c }); // 光标向下 → 跨行
+            focusAt({ r: rc.r + 1, c: rc.c });
           } else {
-            exitBelow(); // 已在末行 → 退到表格下方一行
+            exitBelow();
           }
           break;
         }
         case "Escape": {
-          view.focus(); // 退回文档焦点，focusout 收工具栏
+          view.focus();
           break;
         }
       }
     });
 
-    // ---- 行列拖拽重排（Obsidian 式）：悬停浮现抓手，拖至目标边界松手完成移位 ----
-    // 单只浮动抓手按悬停对象移位（不逐行逐格嵌 DOM，避免 table 结构语义混乱）
-    const rowHandle = document.createElement("div");
-    rowHandle.className = "md-table-handle";
-    rowHandle.title = "拖拽移动整行";
-    const colHandle = document.createElement("div");
-    colHandle.className = "md-table-handle";
-    colHandle.title = "拖拽移动整列";
-    const guide = document.createElement("div");
-    guide.className = "md-table-reorder-guide";
-    guide.style.display = "none";
-    wrap.append(rowHandle, colHandle, guide);
-    const hideHandles = () => {
-      rowHandle.style.display = "none";
-      colHandle.style.display = "none";
-    };
-    // 抓手当前停靠的单元格（悬停更新；拖拽以此为移位对象）
-    let hover: { r: number; c: number } | null = null;
-    wrap.addEventListener("mouseover", (e) => {
-      const cell = cellFrom(e.target);
-      const rc = cell ? idxOf(cell) : null;
-      if (!cell || !rc) return;
-      hover = rc;
-      const wr = wrap.getBoundingClientRect();
-      const cr = cell.getBoundingClientRect();
-      if (rc.r === 0) {
-        // 表头行：列抓手悬于单元格上方；表头行本身不拖移行
-        rowHandle.style.display = "none";
-        colHandle.style.display = "flex";
-        colHandle.style.left = `${cr.left + cr.width / 2 - wr.left - 7}px`;
-        colHandle.style.top = `${cr.top - wr.top - 15}px`;
-      } else {
-        colHandle.style.display = "none";
-        rowHandle.style.display = "flex";
-        rowHandle.style.left = `${cr.left - wr.left - 19}px`;
-        rowHandle.style.top = `${cr.top - wr.top - 2}px`;
-      }
-    });
-    wrap.addEventListener("mouseleave", () => {
-      hover = null;
-      hideHandles();
-    });
-    rowHandle.addEventListener("pointerdown", (e) => {
-      if (hover && hover.r > 0) startDrag("row", hover.r, e); // 表头行固定不拖
-    });
-    colHandle.addEventListener("pointerdown", (e) => {
-      if (hover) startDrag("col", hover.c, e);
-    });
-    /** 拖拽主流程：move 求插入边界并摆指示线，up 按模型移位写回 */
-    function startDrag(kind: "row" | "col", from: number, e: PointerEvent) {
-      const lim = kind === "row" ? model.rows.length : model.rows[0].length;
-      if (lim <= 1 || (kind === "row" && lim <= 2)) return; // 仅一列/一数据行无可重排
-      e.preventDefault(); // 不抢活动格焦点、不触发原生拖选
-      hideHandles();
-      const el = e.currentTarget as HTMLElement;
-      el.setPointerCapture(e.pointerId);
-      document.body.classList.add("md-table-dragging");
-      const wr = wrap.getBoundingClientRect();
-      const tRect = table.getBoundingClientRect();
-      const trs = Array.from(tbody.children) as HTMLTableRowElement[];
-      // 目标插入序（from 原位处视为无效不落）；t < 0 表示暂无有效落点
-      let target = -1;
-      const move = (ev: PointerEvent) => {
-        let t = -1;
-        if (kind === "row") {
-          // 行边界：第一个「中心线之下」的数据行序即插入位（表头前不可落，从 1 起）
-          t = trs.length;
-          for (let i = 1; i < trs.length; i++) {
-            const rr = trs[i].getBoundingClientRect();
-            if (ev.clientY < rr.top + rr.height / 2) {
-              t = i;
-              break;
-            }
-          }
-        } else {
-          const heads = Array.from(trs[0].children) as HTMLElement[];
-          t = heads.length;
-          for (let i = 0; i < heads.length; i++) {
-            const cr = heads[i].getBoundingClientRect();
-            if (ev.clientX < cr.left + cr.width / 2) {
-              t = i;
-              break;
-            }
-          }
-        }
-        target = t === from || t === from + 1 ? -1 : t; // 自身上下皆为原位
-        if (target < 0) {
-          guide.style.display = "none";
-          return;
-        }
-        guide.style.display = "block";
-        if (kind === "row") {
-          const y =
-            target < trs.length
-              ? trs[target].getBoundingClientRect().top
-              : trs[trs.length - 1].getBoundingClientRect().bottom;
-          guide.style.width = `${tRect.width}px`;
-          guide.style.height = "2px";
-          guide.style.left = `${tRect.left - wr.left}px`;
-          guide.style.top = `${y - wr.top - 1}px`;
-        } else {
-          const heads = Array.from(trs[0].children) as HTMLElement[];
-          const x =
-            target < heads.length
-              ? heads[target].getBoundingClientRect().left
-              : heads[heads.length - 1].getBoundingClientRect().right;
-          guide.style.width = "2px";
-          guide.style.height = `${tRect.height}px`;
-          guide.style.left = `${x - wr.left - 1}px`;
-          guide.style.top = `${tRect.top - wr.top}px`;
-        }
-      };
-      const cleanup = () => {
-        el.removeEventListener("pointermove", move);
-        el.removeEventListener("pointerup", up);
-        el.removeEventListener("pointercancel", cleanup);
-        document.body.classList.remove("md-table-dragging");
-        guide.style.display = "none";
-        hideHandles();
-      };
-      const up = () => {
-        cleanup();
-        if (target < 0) return;
-        // 移除源位后的最终插入下标（target 在 from 之后要回退一档）
-        const at = target < from ? target : target - 1;
-        if (kind === "row") {
-          const [r] = model.rows.splice(from, 1);
-          model.rows.splice(at, 0, r);
-        } else {
-          const [a] = model.aligns.splice(from, 1);
-          model.aligns.splice(at, 0, a);
-          if (widths) {
-            const [w] = widths.splice(from, 1);
-            widths.splice(at, 0, w);
-          }
-          for (const row of model.rows) {
-            const [cell] = row.splice(from, 1);
-            row.splice(at, 0, cell);
-          }
-        }
-        renderAll();
-        // 活动格随移走的内容移动（无活动格则不动焦点）
-        if (act) focusAt(kind === "row" ? { r: at, c: act.c } : { r: act.r, c: at });
-        sync();
-        view.requestMeasure();
-      };
-      el.addEventListener("pointermove", move);
-      el.addEventListener("pointerup", up);
-      el.addEventListener("pointercancel", cleanup);
-    }
-
-    // ---- 列宽拖拽（思源式）：悬停单元格右缘热区出 col-resize 光标，
-    // 按住拖动只改被拖列自身宽度（其余列保持不动，总宽随被拖列增减） ----
-    const RESIZE_HOT = 7; // 右缘命中热区（px）
-    const MIN_COL = 40; // 最小列宽（px）
-    function startResize(c: number, e: PointerEvent) {
-      ensureWidths();
-      const ws = widths!;
-      const w0 = ws[c];
-      const x0 = e.clientX;
-      const el = e.currentTarget as HTMLElement;
-      el.setPointerCapture(e.pointerId);
-      document.body.classList.add("md-table-resizing");
-      const move = (ev: PointerEvent) => {
-        // 思源式：只改被拖列自身，其余列宽不动（总宽随被拖列增减）
-        ws[c] = Math.max(MIN_COL, Math.round(w0 + (ev.clientX - x0)));
-        applyWidths();
-      };
-      const cleanup = () => {
-        el.removeEventListener("pointermove", move);
-        el.removeEventListener("pointerup", cleanup);
-        el.removeEventListener("pointercancel", cleanup);
-        document.body.classList.remove("md-table-resizing");
-        view.requestMeasure(); // 列宽变化 → 行内换行数可能变 → 高度图需重测
-      };
-      el.addEventListener("pointermove", move);
-      el.addEventListener("pointerup", cleanup);
-      el.addEventListener("pointercancel", cleanup);
-    }
-    // 右缘热区光标提示（mousemove 委托，命中格加 col-resize）
-    let hotCell: HTMLElement | null = null;
-    wrap.addEventListener("mousemove", (e) => {
-      const cell = cellFrom(e.target);
-      if (hotCell && hotCell !== cell) hotCell.classList.remove("md-col-resizer");
-      if (!cell) {
-        hotCell = null;
-        return;
-      }
-      const r = cell.getBoundingClientRect();
-      const hit = e.clientX >= r.right - RESIZE_HOT;
-      cell.classList.toggle("md-col-resizer", hit);
-      hotCell = hit ? cell : null;
-    });
-    wrap.addEventListener("mouseleave", () => {
-      hotCell?.classList.remove("md-col-resizer");
-      hotCell = null;
-    });
-    // capture 拦截右缘拖拽：阻止格聚焦/原生文本拖选，赶在默认行为之前
-    wrap.addEventListener(
-      "pointerdown",
-      (e) => {
-        const cell = cellFrom(e.target);
-        if (!cell) return;
-        const r = cell.getBoundingClientRect();
-        if (e.clientX < r.right - RESIZE_HOT) return;
-        e.preventDefault();
-        e.stopPropagation();
-        startResize((cell as HTMLTableCellElement).cellIndex, e);
-      },
-      true,
-    );
-
     return wrap;
+  }
+  destroy(dom: HTMLElement) {
+    tableCleanups.get(dom)?.();
+    tableCleanups.delete(dom);
   }
   /** true：CM 完全不接手 widget 内事件，焦点由单元格自管（同 FormulaEditorWidget） */
   ignoreEvent() {

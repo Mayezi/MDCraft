@@ -22,6 +22,7 @@ import {
 } from "./widgets";
 import { HTMLBlockWidget } from "./htmlblock";
 import { frontmatterRange } from "./livepreview";
+import { DiagramWidget, isDiagramLanguage } from "./diagram";
 
 /** 选区与范围是否相交（无余量：光标贴边即进入） */
 function touchesRange(state: EditorState, from: number, to: number): boolean {
@@ -109,12 +110,21 @@ function buildBlockDecorations(state: EditorState): DecorationSet {
           const contentTo = lastLine.from;
           const code = state.sliceDoc(contentFrom, contentTo).replace(/\n$/, "");
           const lang = firstLine.text.replace(/^```\s*/, "").trim();
-          decos.push(
-            Decoration.replace({
-              widget: new CodeBlockWidget(code, lang, from),
-              block: true,
-            }).range(firstLine.from, lastLine.to),
-          );
+          if (isDiagramLanguage(lang)) {
+            decos.push(
+              Decoration.replace({
+                widget: new DiagramWidget(code, lang, from),
+                block: true,
+              }).range(firstLine.from, lastLine.to),
+            );
+          } else {
+            decos.push(
+              Decoration.replace({
+                widget: new CodeBlockWidget(code, lang, from),
+                block: true,
+              }).range(firstLine.from, lastLine.to),
+            );
+          }
         }
         return;
       }

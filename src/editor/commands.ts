@@ -172,6 +172,45 @@ export function insertFence(view: EditorView, lang = ""): boolean {
   return true;
 }
 
+export function insertMermaid(view: EditorView): boolean {
+  const pos = view.state.selection.main.head;
+  const line = view.state.doc.lineAt(pos);
+  const head = line.text.trim() !== "" ? "\n" : "";
+  const tpl = `${head}\`\`\`mermaid\ngraph TD\n    A[开始] --> B(处理步骤)\n    B --> C{是否成功?}\n    C -->|是| D[完成]\n    C -->|否| B\n\`\`\`\n`;
+  view.dispatch({
+    changes: { from: pos, insert: tpl },
+    selection: { anchor: pos + tpl.length },
+    scrollIntoView: true,
+  });
+  return true;
+}
+
+export function insertFlowchart(view: EditorView): boolean {
+  const pos = view.state.selection.main.head;
+  const line = view.state.doc.lineAt(pos);
+  const head = line.text.trim() !== "" ? "\n" : "";
+  const tpl = `${head}\`\`\`flowchart\nflowchart LR\n    A[发起请求] --> B[(数据库)]\n    B --> C[返回结果]\n\`\`\`\n`;
+  view.dispatch({
+    changes: { from: pos, insert: tpl },
+    selection: { anchor: pos + tpl.length },
+    scrollIntoView: true,
+  });
+  return true;
+}
+
+export function insertSequence(view: EditorView): boolean {
+  const pos = view.state.selection.main.head;
+  const line = view.state.doc.lineAt(pos);
+  const head = line.text.trim() !== "" ? "\n" : "";
+  const tpl = `${head}\`\`\`sequence\nsequenceDiagram\n    actor 用户\n    participant 前端 as 客户端\n    participant 后端 as 服务端\n    用户->>前端: 点击操作\n    前端->>后端: 发送 API 请求\n    后端-->>前端: 返回响应数据\n    前端-->>用户: 界面更新展示\n\`\`\`\n`;
+  view.dispatch({
+    changes: { from: pos, insert: tpl },
+    selection: { anchor: pos + tpl.length },
+    scrollIntoView: true,
+  });
+  return true;
+}
+
 export const boldCommand: Command = (v) => toggleWrap(v, "**");
 export const italicCommand: Command = (v) => toggleWrap(v, "*");
 export const strikeCommand: Command = (v) => toggleWrap(v, "~~");

@@ -929,111 +929,117 @@
   padding: 0.8em 0;
   position: relative;
 }
-/* 表格工具栏（思源式）：单元格聚焦时浮现于该单元格上方（left/top 由 JS 按活动格摆位）；
-   半透明毛玻璃 + 入场动效，高级轻浮动卡 */
-.md-table-toolbar {
-  display: none;
-  position: absolute;
-  z-index: 20;
-  transform: translateY(-100%);
-  gap: 2px;
-  padding: 3px;
+/* ============================================================
+   Mermaid / Flowchart / Sequence 图表部件
+   ============================================================ */
+.md-diagram-outer {
+  padding: 0.8em 0;
+}
+.md-diagram-block {
   border: 1px solid var(--border);
-  border-radius: 9px;
-  background: color-mix(in srgb, var(--bg) 86%, transparent);
-  backdrop-filter: blur(10px);
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.12), 0 1px 2px rgba(0, 0, 0, 0.08);
-  user-select: none;
+  border-radius: 8px;
+  background: var(--editor-bg);
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  transition: border-color 0.15s ease;
 }
-.md-table-wrapper.md-table-editing .md-table-toolbar {
+.md-diagram-block:hover {
+  border-color: var(--accent);
+}
+.md-diagram-head {
   display: flex;
-  animation: md-table-bar-in 0.13s ease-out;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 12px;
+  background: var(--bg-soft);
+  border-bottom: 1px solid var(--border);
 }
-@keyframes md-table-bar-in {
-  from {
-    opacity: 0;
-    transform: translateY(-100%) scale(0.96);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(-100%);
-  }
+.md-diagram-badge {
+  font-size: 11px;
+  font-family: var(--font-mono, monospace);
+  font-weight: 600;
+  color: var(--accent);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
-.md-table-tool {
-  border: none;
-  background: transparent;
+.md-diagram-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.md-diagram-btn {
+  font-size: 11.5px;
+  padding: 2.5px 9px;
+  border-radius: 5px;
+  border: 1px solid var(--border);
+  background: var(--bg);
   color: var(--fg-soft);
-  font-size: 12px;
-  line-height: 1;
-  padding: 5px 7px;
-  border-radius: 6px;
   cursor: pointer;
-  white-space: nowrap;
-  transition: background 0.1s ease, color 0.1s ease;
+  transition: all 0.15s ease;
 }
-.md-table-tool:hover {
-  background: var(--accent-soft);
-  color: var(--accent);
+.md-diagram-btn:hover {
+  background: var(--bg-hover);
+  color: var(--fg);
+  border-color: var(--accent);
 }
-.md-table-tool:active {
-  scale: 0.94;
+.md-diagram-preview {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px 16px;
+  min-height: 120px;
+  overflow-x: auto;
+  background: var(--editor-bg);
 }
-/* 对齐键的当前态：活动列正在使用的对齐方式高亮 */
-.md-table-tool-on {
-  background: var(--accent-soft);
-  color: var(--accent);
+.md-diagram-preview svg {
+  max-width: 100%;
+  height: auto;
 }
-.md-table-tool-gap {
-  margin-left: 6px;
-  /* 分组间隔以细缝线暗示 */
-  box-shadow: -3px 0 0 -2.15px var(--border);
+.md-diagram-loading {
+  font-size: 12px;
+  color: var(--fg-faint);
 }
-/* 行列拖拽抓手（Obsidian 式重排）：悬停浮现，点阵外观可拖 */
-.md-table-handle {
-  display: none;
-  position: absolute;
-  z-index: 30;
-  width: 14px;
-  height: 18px;
-  border-radius: 4px;
-  cursor: grab;
-  opacity: 0.55;
-  background-color: var(--bg);
-  background-image: radial-gradient(var(--fg-soft) 1.1px, transparent 1.4px);
-  background-size: 4.5px 5px;
-  background-position: center;
-  user-select: none;
+.md-diagram-error {
+  padding: 12px 16px;
+  border-radius: 6px;
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.25);
+  color: var(--danger);
+  font-size: 12px;
+  width: 100%;
 }
-.md-table-handle:hover {
-  opacity: 1;
-  background-color: var(--accent-soft);
+.md-diagram-error-title {
+  font-weight: 600;
+  display: block;
+  margin-bottom: 4px;
 }
-/* 拖拽插入指示线（横=行边界，竖=列边界，几何由 JS 摆位） */
-.md-table-reorder-guide {
-  position: absolute;
-  z-index: 29;
-  background: var(--accent);
-  border-radius: 1px;
-  pointer-events: none;
+.md-diagram-error pre {
+  margin: 0;
+  font-size: 11px;
+  white-space: pre-wrap;
+  word-break: break-all;
 }
-/* 拖拽态：抓手光标 + 禁文本随拖选中 */
-.md-table-dragging,
-.md-table-dragging * {
-  cursor: grabbing !important;
-  user-select: none;
+.md-diagram-edit-wrap {
+  padding: 12px;
+  background: var(--code-bg);
 }
-/* 列宽拖拽（思源式）：右缘热区光标；固定布局下解除内容宽钳制 */
-.md-table .md-col-resizer {
-  cursor: col-resize !important;
+.md-diagram-textarea {
+  width: 100%;
+  min-height: 130px;
+  font-family: var(--font-mono, monospace);
+  font-size: 13px;
+  line-height: 1.6;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 8px 10px;
+  background: var(--bg);
+  color: var(--fg);
+  outline: none;
+  resize: vertical;
 }
-.md-table.md-table-fixed th,
-.md-table.md-table-fixed td {
-  max-width: none;
-}
-.md-table-resizing,
-.md-table-resizing * {
-  cursor: col-resize !important;
-  user-select: none;
+.md-diagram-textarea:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-soft);
 }
 .md-table th,
 .md-table td {

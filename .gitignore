@@ -9,3 +9,4 @@ src-tauri/gen/schemas/
 .temp/
 bun.lock
 *.patch
+metadata.json
