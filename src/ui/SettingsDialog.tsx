@@ -9,8 +9,11 @@ import {
   ExternalLink,
   FileText,
   FolderOpen,
+  Info,
+  Palette,
   RefreshCw,
   Search,
+  Settings,
   Upload,
   X,
 } from "lucide-react";
@@ -44,11 +47,11 @@ const WIDTH_PRESETS = [
 
 /** 左侧分类 tab（顺序即导航顺序） */
 const CATEGORIES = [
-  { id: "appearance", label: "外观" },
-  { id: "files", label: "文件与启动" },
-  { id: "config", label: "配置" },
-  { id: "update", label: "更新" },
-  { id: "about", label: "关于" },
+  { id: "appearance", label: "外观", icon: Palette },
+  { id: "files", label: "文件与启动", icon: FolderOpen },
+  { id: "config", label: "配置", icon: Settings },
+  { id: "update", label: "更新", icon: RefreshCw },
+  { id: "about", label: "关于", icon: Info },
 ] as const;
 
 export type SettingsCategory = (typeof CATEGORIES)[number]["id"];
@@ -802,12 +805,13 @@ export default function SettingsDialog({
                     setActiveIndex(0);
                   }}
                   aria-current={cat.id === category}
-                  className={`rounded-md px-2.5 py-1.5 text-left text-[12.5px] transition-colors duration-150 ${FOCUS_RING} ${
+                  className={`flex items-center gap-2 rounded-md px-2.5 py-1.5 text-left text-[12.5px] transition-colors duration-150 ${FOCUS_RING} ${
                     cat.id === category
                       ? "bg-[var(--accent-soft)] font-medium text-[var(--accent)]"
                       : "text-[var(--fg-soft)] hover:bg-[var(--bg-hover)] hover:text-[var(--fg)]"
                   }`}
                 >
+                  <cat.icon size={15} className="shrink-0" />
                   {cat.label}
                 </button>
               ))}

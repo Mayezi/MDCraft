@@ -242,7 +242,7 @@ export default function Toolbar() {
 
   return (
     <div
-      className="flex h-10 shrink-0 select-none items-stretch gap-1 border-b border-[var(--border)] bg-[var(--bg)] pl-3 pr-0"
+      className="flex h-10 shrink-0 select-none items-center gap-1 border-b border-[var(--border)] bg-[var(--bg)] pl-3 pr-0"
       data-tauri-drag-region
       onDoubleClick={(e) => {
         // 无边框窗口：双击工具栏空白区（非按钮）最大化/还原
@@ -260,12 +260,12 @@ export default function Toolbar() {
 
       {/* 品牌位：应用图标 + 名称 */}
       <div className="flex items-center gap-1.5 select-none" aria-hidden="true">
-        <img src="/app-icon.png" alt="MDCraft" className="h-4 w-4 rounded" draggable={false} />
-        <span className="text-[12.5px] font-semibold text-[var(--fg)]">MDCraft</span>
+        <img src="/app-icon.png" alt="MDCraft" className="h-4 w-4 shrink-0 rounded" draggable={false} />
+        <span className="text-[12.5px] font-semibold leading-none text-[var(--fg)]">MDCraft</span>
       </div>
 
       {/* 菜单组 */}
-      <div ref={menuRef} className="flex items-stretch">
+      <div ref={menuRef} className="flex items-center">
         {groups.map((g, gi) => (
           <div key={g.label} className="relative">
             <button
@@ -294,7 +294,7 @@ export default function Toolbar() {
         ))}
       </div>
 
-      <div className="ml-auto flex items-stretch gap-1">
+      <div className="ml-auto flex items-center gap-1">
         <Tooltip content="GitHub 仓库">
           <a
             href="https://github.com/Mayezi/MDCraft"

@@ -9,7 +9,6 @@ import {
   X,
   ArrowRight,
   RefreshCw,
-  FileText,
 } from "lucide-react";
 import {
   useUpdateState,
@@ -36,7 +35,6 @@ function formatBytes(bytes?: number): string {
 export default function UpdateDialog({ open, onClose }: UpdateDialogProps) {
   const updateState = useUpdateState();
   const [installing, setInstalling] = useState(false);
-  const [showCurrentChangelog, setShowCurrentChangelog] = useState(false);
 
   if (!open) return null;
 
@@ -113,22 +111,15 @@ export default function UpdateDialog({ open, onClose }: UpdateDialogProps) {
                 </div>
               </div>
 
-              {/* 主流设计：允许用户在已是最新时查看当前版本的更新日志 */}
+              {/* 当前版本更新公告：默认展开、不可收起 */}
               {updateState.notes ? (
                 <div>
-                  <div className="flex items-center justify-between mb-2">
-                    <button
-                      type="button"
-                      onClick={() => setShowCurrentChangelog((v) => !v)}
-                      className="flex items-center gap-1.5 text-xs font-semibold text-[var(--fg-soft)] hover:text-[var(--accent)] transition-colors"
-                    >
-                      <FileText size={13} />
-                      <span>{showCurrentChangelog ? "收起本版更新说明" : "查看本版更新说明"}</span>
-                    </button>
+                  <div className="mb-2 flex items-center justify-between">
+                    <span className="text-xs font-semibold uppercase tracking-wider text-[var(--fg-faint)]">
+                      本版更新说明
+                    </span>
                   </div>
-                  {showCurrentChangelog && (
-                    <MarkdownChangelog content={updateState.notes} />
-                  )}
+                  <MarkdownChangelog content={updateState.notes} />
                 </div>
               ) : null}
             </div>
