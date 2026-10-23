@@ -2,6 +2,18 @@
 import { WidgetType, type EditorView } from "@codemirror/view";
 import { notifySuccess, notifyError } from "../lib/notify";
 
+// ---------- Lucide 矢量图标定义（对齐全局风格，摒弃 emoji） ----------
+const ICON_IMAGE = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>`;
+const ICON_CODE = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>`;
+const ICON_DOWNLOAD = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>`;
+const ICON_VECTOR = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><path d="m10 13-2 2 2 2"/><path d="m14 17 2-2-2-2"/></svg>`;
+const ICON_COPY = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>`;
+const ICON_CHECK = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`;
+const ICON_EXPORT = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>`;
+const ICON_CARET = `<svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="opacity:0.6;"><path d="m6 9 6 6 6-6"/></svg>`;
+const ICON_EDIT = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>`;
+const ICON_EYE = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>`;
+
 let mermaidPromise: Promise<typeof import("mermaid")["default"]> | null = null;
 
 async function getMermaid(isDark: boolean) {
@@ -146,11 +158,15 @@ function openDiagramExportMenu(anchor: HTMLElement, svgString: string, previewEl
   const menu = document.createElement("div");
   menu.className = "md-diagram-menu";
 
-  const addItem = (icon: string, label: string, action: () => Promise<void> | void) => {
+  const addItem = (iconSvg: string, label: string, tag: string, action: () => Promise<void> | void) => {
     const item = document.createElement("button");
     item.type = "button";
     item.className = "md-diagram-menu-item";
-    item.innerHTML = `<span class="md-diagram-menu-icon">${icon}</span><span>${label}</span>`;
+    item.innerHTML = `
+      <span class="md-diagram-menu-icon">${iconSvg}</span>
+      <span class="md-diagram-menu-label">${label}</span>
+      <span class="md-diagram-menu-tag">${tag}</span>
+    `;
     item.addEventListener("mousedown", (e) => {
       e.preventDefault();
       e.stopPropagation();
@@ -167,7 +183,7 @@ function openDiagramExportMenu(anchor: HTMLElement, svgString: string, previewEl
     menu.appendChild(item);
   };
 
-  addItem("🖼️", "复制 PNG 图片", async () => {
+  addItem(ICON_IMAGE, "复制图片到剪贴板", "PNG", async () => {
     const svgEl = previewEl.querySelector("svg");
     const blob = await svgToPngBlob(svgEl, svgString, 2);
     if (navigator.clipboard && typeof ClipboardItem !== "undefined") {
@@ -183,7 +199,7 @@ function openDiagramExportMenu(anchor: HTMLElement, svgString: string, previewEl
     notifySuccess("已将 PNG 图表下载到本地");
   });
 
-  addItem("📋", "复制 SVG 代码", async () => {
+  addItem(ICON_CODE, "复制矢量源码", "SVG", async () => {
     try {
       await navigator.clipboard.writeText(svgString);
       notifySuccess("已复制 SVG 代码到剪贴板");
@@ -196,14 +212,14 @@ function openDiagramExportMenu(anchor: HTMLElement, svgString: string, previewEl
   sep.className = "md-diagram-menu-sep";
   menu.appendChild(sep);
 
-  addItem("💾", "下载 PNG 图片", async () => {
+  addItem(ICON_DOWNLOAD, "下载高清图片", "PNG", async () => {
     const svgEl = previewEl.querySelector("svg");
     const blob = await svgToPngBlob(svgEl, svgString, 2);
     downloadBlob(blob, `diagram-${Date.now()}.png`);
     notifySuccess("已导出 PNG 图片文件");
   });
 
-  addItem("📐", "下载 SVG 矢量图", () => {
+  addItem(ICON_VECTOR, "下载矢量文件", "SVG", () => {
     const blob = new Blob([svgString], { type: "image/svg+xml;charset=utf-8" });
     downloadBlob(blob, `diagram-${Date.now()}.svg`);
     notifySuccess("已导出 SVG 矢量图");
@@ -212,7 +228,7 @@ function openDiagramExportMenu(anchor: HTMLElement, svgString: string, previewEl
   document.body.appendChild(menu);
 
   const rect = anchor.getBoundingClientRect();
-  const width = 160;
+  const width = 175;
   menu.style.width = `${width}px`;
   menu.style.left = `${Math.max(8, Math.min(rect.right - width, window.innerWidth - width - 8))}px`;
   menu.style.top = `${rect.bottom + 4}px`;
@@ -271,18 +287,29 @@ export class DiagramWidget extends WidgetType {
     const actions = document.createElement("div");
     actions.className = "md-diagram-actions";
 
+    // 一键复制图片按钮
+    const copyBtn = document.createElement("button");
+    copyBtn.type = "button";
+    copyBtn.className = "md-diagram-btn";
+    copyBtn.innerHTML = `${ICON_COPY}<span>复制</span>`;
+    copyBtn.title = "复制 PNG 图片到剪贴板";
+    copyBtn.disabled = true;
+
+    // 导出下拉菜单按钮
     const exportBtn = document.createElement("button");
     exportBtn.type = "button";
     exportBtn.className = "md-diagram-btn";
-    exportBtn.innerHTML = `<span>导出</span><span style="font-size:9px;opacity:0.6;">▾</span>`;
+    exportBtn.innerHTML = `${ICON_EXPORT}<span>导出</span>${ICON_CARET}`;
     exportBtn.title = "导出图表（PNG / SVG）";
     exportBtn.disabled = true;
 
+    // 编辑代码切换按钮
     const toggleBtn = document.createElement("button");
     toggleBtn.type = "button";
     toggleBtn.className = "md-diagram-btn";
-    toggleBtn.textContent = "编辑代码";
+    toggleBtn.innerHTML = `${ICON_EDIT}<span>编辑代码</span>`;
 
+    actions.appendChild(copyBtn);
     actions.appendChild(exportBtn);
     actions.appendChild(toggleBtn);
     bar.appendChild(badge);
@@ -306,6 +333,7 @@ export class DiagramWidget extends WidgetType {
     let isEditing = false;
     let currentCode = this.code;
     let lastSvg = "";
+    let copyResetTimer: ReturnType<typeof setTimeout> | null = null;
 
     const isDark =
       document.documentElement.dataset.themeMode === "dark" ||
@@ -316,9 +344,11 @@ export class DiagramWidget extends WidgetType {
         const svg = await renderDiagramSvg(source, this.lang, isDark);
         lastSvg = svg;
         preview.innerHTML = svg;
+        copyBtn.disabled = isEditing;
         exportBtn.disabled = isEditing;
       } catch (err: unknown) {
         lastSvg = "";
+        copyBtn.disabled = true;
         exportBtn.disabled = true;
         const message = err instanceof Error ? err.message : String(err);
         preview.innerHTML = `<div class="md-diagram-error"><span class="md-diagram-error-title">图表语法提示</span><pre>${message}</pre></div>`;
@@ -327,6 +357,32 @@ export class DiagramWidget extends WidgetType {
     };
 
     void doRender(currentCode);
+
+    copyBtn.addEventListener("mousedown", (e) => e.stopPropagation());
+    copyBtn.addEventListener("click", async (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      if (!lastSvg) return;
+      try {
+        const svgEl = preview.querySelector("svg");
+        const blob = await svgToPngBlob(svgEl, lastSvg, 2);
+        if (navigator.clipboard && typeof ClipboardItem !== "undefined") {
+          await navigator.clipboard.write([new ClipboardItem({ "image/png": blob })]);
+        } else {
+          downloadBlob(blob, `diagram-${Date.now()}.png`);
+        }
+        copyBtn.innerHTML = `${ICON_CHECK}<span>已复制</span>`;
+        copyBtn.classList.add("is-copied");
+        notifySuccess("图表图片已复制到剪贴板");
+        if (copyResetTimer) clearTimeout(copyResetTimer);
+        copyResetTimer = setTimeout(() => {
+          copyBtn.innerHTML = `${ICON_COPY}<span>复制</span>`;
+          copyBtn.classList.remove("is-copied");
+        }, 1500);
+      } catch (err) {
+        notifyError(err instanceof Error ? err.message : "复制失败");
+      }
+    });
 
     exportBtn.addEventListener("mousedown", (e) => e.stopPropagation());
     exportBtn.addEventListener("click", (e) => {
@@ -345,14 +401,17 @@ export class DiagramWidget extends WidgetType {
       if (isEditing) {
         preview.style.display = "none";
         editWrap.style.display = "block";
-        toggleBtn.textContent = "图表预览";
+        toggleBtn.innerHTML = `${ICON_EYE}<span>图表预览</span>`;
+        copyBtn.style.display = "none";
         exportBtn.style.display = "none";
         editArea.focus();
       } else {
         editWrap.style.display = "none";
         preview.style.display = "flex";
-        toggleBtn.textContent = "编辑代码";
+        toggleBtn.innerHTML = `${ICON_EDIT}<span>编辑代码</span>`;
+        copyBtn.style.display = "inline-flex";
         exportBtn.style.display = "inline-flex";
+        copyBtn.disabled = !lastSvg;
         exportBtn.disabled = !lastSvg;
         if (editArea.value !== currentCode) {
           currentCode = editArea.value;

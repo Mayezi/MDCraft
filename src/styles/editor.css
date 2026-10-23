@@ -992,25 +992,29 @@
 .md-diagram-actions {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 5px;
 }
 .md-diagram-btn {
   display: inline-flex;
   align-items: center;
-  gap: 3px;
+  gap: 4px;
   font-size: 11.5px;
-  padding: 2.5px 8px;
+  padding: 3px 8px;
   border-radius: 5px;
   border: 1px solid var(--border);
   background: var(--bg);
   color: var(--fg-soft);
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: all 0.12s ease;
   user-select: none;
 }
 .md-diagram-btn:hover {
   background: var(--bg-hover);
   color: var(--fg);
+  border-color: var(--border);
+}
+.md-diagram-btn.is-copied {
+  color: var(--success, #10b981);
 }
 .md-diagram-btn:disabled {
   opacity: 0.45;
@@ -1023,12 +1027,13 @@
   display: flex;
   flex-direction: column;
   gap: 2px;
-  padding: 4px;
+  padding: 5px;
   border: 1px solid var(--border);
-  border-radius: 8px;
-  background: var(--bg);
+  border-radius: 9px;
+  background: color-mix(in srgb, var(--bg) 95%, transparent);
+  backdrop-filter: blur(12px);
   color: var(--fg);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.16);
+  box-shadow: 0 10px 28px -4px rgba(0, 0, 0, 0.16), 0 4px 10px -2px rgba(0, 0, 0, 0.08);
   user-select: none;
   animation: md-diag-menu-in 0.1s ease-out;
 }
@@ -1048,9 +1053,9 @@
   gap: 8px;
   width: 100%;
   box-sizing: border-box;
-  padding: 5px 8px;
+  padding: 6px 9px;
   border: 0;
-  border-radius: 5px;
+  border-radius: 6px;
   background: transparent;
   color: var(--fg);
   font-size: 12px;
@@ -1063,10 +1068,32 @@
   color: var(--accent);
 }
 .md-diagram-menu-icon {
-  font-size: 13px;
-  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   width: 16px;
-  text-align: center;
+  height: 16px;
+  color: var(--fg-soft);
+  flex-shrink: 0;
+}
+.md-diagram-menu-item:hover .md-diagram-menu-icon {
+  color: var(--accent);
+}
+.md-diagram-menu-label {
+  flex: 1 1 auto;
+  font-size: 12px;
+  color: var(--fg);
+}
+.md-diagram-menu-tag {
+  font-family: var(--mono-font);
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--fg-faint);
+  background: var(--bg-soft);
+  border: 1px solid var(--border);
+  padding: 1px 4px;
+  border-radius: 3px;
+  letter-spacing: 0.02em;
 }
 .md-diagram-menu-sep {
   height: 1px;
