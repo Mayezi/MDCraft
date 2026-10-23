@@ -1,4 +1,4 @@
-// 大纲面板（思源式）：H 级别标记、当前光标位置高亮+滚动跟随、
+// 大纲面板（思源式）：H 级别标记、视口锚点高亮 + 平滑滚动跟随、
 // 嵌套树折叠（grid 0fr↔1fr 高度过渡）、展开层级工具
 
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type RefObject } from "react";
@@ -10,7 +10,7 @@ import type { OutlineItem } from "../lib/types";
 /** H1~H6 级别标记（等宽灰色小字） */
 const H_LABEL = ["H1", "H2", "H3", "H4", "H5", "H6"];
 
-/** 每级缩进（px）：导引线与条目内容共用，层级骨架才对得齐 */
+/** 每级缩进（px）：层级靠缩进 + 色阶表达 */
 const LEVEL_INDENT = 14;
 
 /** 级别色阶：一级最重最实，逐级变浅变细 */
@@ -141,12 +141,46 @@ export default function Outline() {
   // 当前高亮项（锚点所在小节的标题链末项）；变化时滚动到面板可见区
   const current = chain.length > 0 ? chain[chain.length - 1] : null;
   const activeRef = useRef<HTMLButtonElement | null>(null);
+  const listRef = useRef<HTMLDivElement | null>(null);
   useEffect(() => {
-    if (!activeRef.current) return;
+    const list = listRef.current;
+    const el = activeRef.current;
+    if (!list || !el) return;
     // 当前标题被折叠在某个父标题下时 DOM 仍在但视觉隐藏，滚动过去会看到空白
     if (chain.slice(0, -1).some((item) => collapsed.has(item.line))) return;
-    // 跟随编辑区滚动用即时定位：平滑滚动会落后于编辑区，看着像"追不上"
-    activeRef.current.scrollIntoView({ block: "nearest" });
+
+    // 目标位置：最近可见 + 上下留白；已经完整可见就不动
+    const PAD = 16;
+    const listRect = list.getBoundingClientRect();
+    const rect = el.getBoundingClientRect();
+    const top = list.scrollTop + rect.top - listRect.top;
+    const bottom = top + rect.height;
+    let to = list.scrollTop;
+    if (top < list.scrollTop + PAD) to = top - PAD;
+    else if (bottom > list.scrollTop + list.clientHeight - PAD) to = bottom - list.clientHeight + PAD;
+    if (Math.abs(to - list.scrollTop) < 1) return;
+
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      list.scrollTop = to;
+      return;
+    }
+
+    // 自己写 rAF 缓动而不是用 scrollIntoView({behavior:"smooth"})：
+    // 时长与曲线可控，连续切换章节时从当前滚动位置续上，不会排一串动画
+    const from = list.scrollTop;
+    const dist = to - from;
+    const dur = Math.min(320, 140 + Math.abs(dist) * 0.3);
+    const t0 = performance.now();
+    let frame = 0;
+    const step = (now: number) => {
+      const p = Math.min(1, (now - t0) / dur);
+      // easeInOutCubic：起步和收尾都缓，长距离跳转不会"猛冲一下再慢慢爬"
+      const eased = p < 0.5 ? 4 * p * p * p : 1 - Math.pow(-2 * p + 2, 3) / 2;
+      list.scrollTop = from + dist * eased;
+      if (p < 1) frame = requestAnimationFrame(step);
+    };
+    frame = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(frame);
   }, [current?.line]);
 
   // 切换文档时清空折叠状态（行号属于上一份文档，保留会指错标题）
@@ -228,7 +262,7 @@ export default function Outline() {
           输入 / 快速插入标题层级。
         </div>
       ) : (
-        <div className="min-h-0 flex-1 overflow-y-auto px-1.5 pb-6 pt-1.5">
+        <div ref={listRef} className="min-h-0 flex-1 overflow-y-auto px-1.5 pb-6 pt-1.5">
           {/* 列表底部留白（pb-6）：最后一条不要贴着面板底边 */}
           {tree.map((node) => (
             <NodeView
