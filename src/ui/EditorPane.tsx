@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import { EditorView } from "@codemirror/view";
-import { syntaxTree } from "@codemirror/language";
+import { syntaxTree, ensureSyntaxTree } from "@codemirror/language";
 import { editorStates, useStore } from "../store";
 import { createState, reconfigure, type EditorSettings } from "../editor/setup";
 import { setView } from "../editor/viewref";
@@ -22,7 +22,11 @@ function computeOutline(view: EditorView): OutlineItem[] {
   // 其 title: xxx + 闭合 --- 按 CommonMark 会被误判为 Setext H2
   const fm = frontmatterRange(state);
   const fmEndPos = fm ? state.doc.line(fm[1]).to : -1;
-  syntaxTree(state).iterate({
+  // 用 ensureSyntaxTree 强制完整解析：Language 的 field.tree 在创建时只按
+  // 20ms 时间预算解析了一部分，大文档会得到不完整树导致大纲截断；
+  // 这里以文档末尾为界确保拿到整棵树，避免大纲只显示前半段标题。
+  const tree = ensureSyntaxTree(state, state.doc.length) ?? syntaxTree(state);
+  tree.iterate({
     enter(node) {
       if (fm && node.name !== "Document" && node.from < fmEndPos) return false;
       const m = /^(ATXHeading|SetextHeading)([1-6])$/.exec(node.name);
