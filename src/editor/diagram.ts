@@ -183,13 +183,13 @@ function openDiagramExportMenu(anchor: HTMLElement, svgString: string, previewEl
     menu.appendChild(item);
   };
 
-  addItem(ICON_IMAGE, "复制图片到剪贴板", "PNG", async () => {
+  addItem(ICON_IMAGE, "复制图片", "PNG", async () => {
     const svgEl = previewEl.querySelector("svg");
     const blob = await svgToPngBlob(svgEl, svgString, 2);
     if (navigator.clipboard && typeof ClipboardItem !== "undefined") {
       try {
         await navigator.clipboard.write([new ClipboardItem({ "image/png": blob })]);
-        notifySuccess("已复制 PNG 图片到剪贴板");
+        notifySuccess("图表图片已复制到剪贴板");
         return;
       } catch {
         // fallback to download
@@ -199,10 +199,10 @@ function openDiagramExportMenu(anchor: HTMLElement, svgString: string, previewEl
     notifySuccess("已将 PNG 图表下载到本地");
   });
 
-  addItem(ICON_CODE, "复制矢量源码", "SVG", async () => {
+  addItem(ICON_CODE, "复制源码", "SVG", async () => {
     try {
       await navigator.clipboard.writeText(svgString);
-      notifySuccess("已复制 SVG 代码到剪贴板");
+      notifySuccess("SVG 代码已复制到剪贴板");
     } catch {
       notifyError("复制失败");
     }
@@ -212,14 +212,14 @@ function openDiagramExportMenu(anchor: HTMLElement, svgString: string, previewEl
   sep.className = "md-diagram-menu-sep";
   menu.appendChild(sep);
 
-  addItem(ICON_DOWNLOAD, "下载高清图片", "PNG", async () => {
+  addItem(ICON_DOWNLOAD, "下载图片", "PNG", async () => {
     const svgEl = previewEl.querySelector("svg");
     const blob = await svgToPngBlob(svgEl, svgString, 2);
     downloadBlob(blob, `diagram-${Date.now()}.png`);
     notifySuccess("已导出 PNG 图片文件");
   });
 
-  addItem(ICON_VECTOR, "下载矢量文件", "SVG", () => {
+  addItem(ICON_VECTOR, "下载矢量图", "SVG", () => {
     const blob = new Blob([svgString], { type: "image/svg+xml;charset=utf-8" });
     downloadBlob(blob, `diagram-${Date.now()}.svg`);
     notifySuccess("已导出 SVG 矢量图");
@@ -228,9 +228,9 @@ function openDiagramExportMenu(anchor: HTMLElement, svgString: string, previewEl
   document.body.appendChild(menu);
 
   const rect = anchor.getBoundingClientRect();
-  const width = 175;
-  menu.style.width = `${width}px`;
-  menu.style.left = `${Math.max(8, Math.min(rect.right - width, window.innerWidth - width - 8))}px`;
+  const menuWidth = menu.offsetWidth || 165;
+  const left = Math.max(8, Math.min(rect.right - menuWidth, window.innerWidth - menuWidth - 8));
+  menu.style.left = `${left}px`;
   menu.style.top = `${rect.bottom + 4}px`;
 
   let closed = false;

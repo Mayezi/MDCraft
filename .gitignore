@@ -10,3 +10,5 @@ src-tauri/gen/schemas/
 bun.lock
 *.patch
 metadata.json
+.aistudio/
+public/assets/
