@@ -1,7 +1,7 @@
 // 大纲面板（思源式）：H 级别标记、当前光标位置高亮+滚动跟随、
 // 嵌套树折叠（grid 0fr↔1fr 高度过渡）、展开层级工具
 
-import { useEffect, useLayoutEffect, useMemo, useRef, useState, type RefObject } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type RefObject } from "react";
 import { useStore } from "../store";
 import { jumpToLine } from "../editor/viewref";
 import { ChevronRight, ListTree } from "lucide-react";
@@ -9,6 +9,13 @@ import type { OutlineItem } from "../lib/types";
 
 /** H1~H6 级别标记（等宽灰色小字） */
 const H_LABEL = ["H1", "H2", "H3", "H4", "H5", "H6"];
+
+/** 每级缩进（px）：导引线与条目内容共用，层级骨架才对得齐 */
+const LEVEL_INDENT = 14;
+
+/** 级别色阶：一级最重最实，逐级变浅变细 */
+const LEVEL_FG = ["var(--fg)", "var(--fg)", "var(--fg-soft)", "var(--fg-soft)", "var(--fg-faint)", "var(--fg-faint)"];
+const LEVEL_FW = [700, 600, 500, 400, 400, 400];
 
 interface OutlineNode {
   item: OutlineItem;
@@ -47,47 +54,58 @@ function NodeView({
   const hasChildren = node.children.length > 0;
   const open = !collapsed.has(item.line);
   const isCurrent = currentLine === item.line;
+  const level = item.level;
 
   return (
     <div>
       <div
-        className={`group flex items-center rounded pr-1.5 transition-colors duration-150 ${
-          isCurrent ? "bg-[var(--bg-hover)]" : "hover:bg-[var(--bg-hover)]"
+        className={`outline-row group flex items-center rounded-md pr-1.5 transition-colors duration-150 ${
+          isCurrent ? "is-current bg-[var(--accent-soft)]" : "hover:bg-[var(--bg-hover)]"
         }`}
-        style={{ marginLeft: (item.level - 1) * 14 }}
+        style={
+          {
+            "--outline-fg": LEVEL_FG[level - 1],
+            "--outline-fw": LEVEL_FW[level - 1],
+          } as CSSProperties
+        }
       >
-        {/* 折叠三角：旋转过渡；无子项时留出等宽占位 */}
-        <button
-          title={hasChildren ? (open ? "折叠子标题" : "展开子标题") : ""}
-          disabled={!hasChildren}
-          aria-expanded={hasChildren ? open : undefined}
-          onClick={() => hasChildren && toggle(item.line)}
-          className={`flex h-5 w-5 shrink-0 items-center justify-center rounded transition-colors duration-150 ${
-            hasChildren
-              ? "cursor-pointer text-[var(--fg-faint)] hover:bg-[var(--bg-hover)] hover:text-[var(--fg)]"
-              : "cursor-default"
-          }`}
-        >
-          {hasChildren && (
-            <ChevronRight
-              size={13}
-              className={`transition-transform duration-200 ${open ? "rotate-90" : ""}`}
-            />
-          )}
-        </button>
-        <button
-          ref={isCurrent ? activeRef : undefined}
-          title={item.text}
-          onClick={() => jumpToLine(item.line)}
-          className="flex min-w-0 flex-1 cursor-pointer items-center gap-1.5 truncate py-[3px] pr-1 text-left text-[13px] text-[var(--fg)]"
-        >
-          <span className="shrink-0 text-[10.5px] font-medium tabular-nums text-[var(--fg-faint)]">
-            {H_LABEL[item.level - 1]}
-          </span>
-          <span className="truncate" style={{ fontWeight: item.level <= 2 ? 600 : 400 }}>
-            {item.text}
-          </span>
-        </button>
+        {/* 当前项：左侧主色标条 */}
+        {isCurrent && (
+          <span className="absolute left-0 top-[20%] h-[60%] w-[3px] rounded-r bg-[var(--accent)]" />
+        )}
+        {/* 内容按层级缩进 */}
+        <div className="flex min-w-0 flex-1 items-center" style={{ paddingLeft: (level - 1) * LEVEL_INDENT }}>
+          {/* 折叠三角：旋转过渡；无子项时留出等宽占位 */}
+          <button
+            title={hasChildren ? (open ? "折叠子标题" : "展开子标题") : ""}
+            disabled={!hasChildren}
+            aria-expanded={hasChildren ? open : undefined}
+            onClick={() => hasChildren && toggle(item.line)}
+            className={`flex h-5 w-5 shrink-0 items-center justify-center rounded transition-colors duration-150 ${
+              hasChildren
+                ? "cursor-pointer text-[var(--fg-faint)] hover:bg-[var(--bg-hover)] hover:text-[var(--fg)]"
+                : "cursor-default"
+            }`}
+          >
+            {hasChildren && (
+              <ChevronRight
+                size={13}
+                className={`transition-transform duration-200 ${open ? "rotate-90" : ""}`}
+              />
+            )}
+          </button>
+          <button
+            ref={isCurrent ? activeRef : undefined}
+            title={item.text}
+            onClick={() => jumpToLine(item.line, 1, "start")}
+            className="flex min-w-0 flex-1 cursor-pointer items-center gap-1.5 truncate py-[5px] pr-1 text-left text-[13px]"
+          >
+            <span className="outline-hlabel shrink-0 text-[10.5px] font-medium tabular-nums">
+              {H_LABEL[level - 1]}
+            </span>
+            <span className="outline-title truncate">{item.text}</span>
+          </button>
+        </div>
       </div>
       {hasChildren && (
         <div className={`outline-kids ${open ? "is-open" : ""}`} aria-hidden={!open} inert={!open}>
@@ -120,15 +138,15 @@ export default function Outline() {
   const [levelMenuOpen, setLevelMenuOpen] = useState(false);
   const levelBtnRef = useRef<HTMLDivElement>(null);
 
-  // 当前高亮项（标题链末项）；变化时滚动到面板可见区
+  // 当前高亮项（锚点所在小节的标题链末项）；变化时滚动到面板可见区
   const current = chain.length > 0 ? chain[chain.length - 1] : null;
   const activeRef = useRef<HTMLButtonElement | null>(null);
   useEffect(() => {
     if (!activeRef.current) return;
     // 当前标题被折叠在某个父标题下时 DOM 仍在但视觉隐藏，滚动过去会看到空白
     if (chain.slice(0, -1).some((item) => collapsed.has(item.line))) return;
-    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    activeRef.current.scrollIntoView({ block: "nearest", behavior: reduce ? "auto" : "smooth" });
+    // 跟随编辑区滚动用即时定位：平滑滚动会落后于编辑区，看着像"追不上"
+    activeRef.current.scrollIntoView({ block: "nearest" });
   }, [current?.line]);
 
   // 切换文档时清空折叠状态（行号属于上一份文档，保留会指错标题）

@@ -14,8 +14,13 @@ export function getView(): EditorView | null {
   return view;
 }
 
-/** 跳到指定行（col 为 1-based 字符列，用于定位到搜索命中的具体位置） */
-export function jumpToLine(line: number, col = 1) {
+/**
+ * 跳到指定行（col 为 1-based 字符列，用于定位到搜索命中的具体位置）
+ *
+ * y：滚动定位方式。默认 "center"（目标居中）；
+ * "start" 让目标落在视口顶部——大纲点击用这个，标题正好成为视口锚点。
+ */
+export function jumpToLine(line: number, col = 1, y: "center" | "start" = "center") {
   const v = getView();
   if (!v) return;
   const l = v.state.doc.line(Math.min(Math.max(1, line), v.state.doc.lines));
@@ -25,7 +30,7 @@ export function jumpToLine(line: number, col = 1) {
     if (getView() !== v) return; // 期间切换/销毁了视图
     v.dispatch({
       selection: { anchor: pos },
-      effects: EditorView.scrollIntoView(pos, { y: "center" }),
+      effects: EditorView.scrollIntoView(pos, { y }),
     });
     v.focus();
   });

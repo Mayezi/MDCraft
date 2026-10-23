@@ -46,7 +46,7 @@ interface AppStore {
   recentEntries: RecentEntry[];
   addRecentEntry: (path: string, kind: RecentEntry["kind"]) => void;
   outline: OutlineItem[];
-  /** 当前光标所在的标题链（H1→…→当前层，面包屑/大纲高亮共用） */
+  /** 视口锚点所在的小节标题链（H1→…→当前层；随编辑区滚动更新，大纲高亮/跟随共用） */
   headingChain: OutlineItem[];
   status: { line: number; col: number; words: number; chars: number };
   /** 在目录树中定位文件的请求（面包屑「定位」按钮发起；ts 保证同文件重复触发） */

@@ -1,6 +1,6 @@
 // 编辑器面板：CodeMirror 宿主、文档切换、大纲/状态同步
 
-import { useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { EditorView } from "@codemirror/view";
 import { syntaxTree, ensureSyntaxTree } from "@codemirror/language";
 import { editorStates, useStore } from "../store";
@@ -42,14 +42,13 @@ function computeOutline(view: EditorView): OutlineItem[] {
 }
 
 /**
- * 当前光标所在的标题链（H1→…→当前层），思源 setCurrent 同款思路：
- * 取光标前最近的标题，再向上收集各级父标题
+ * 视口锚点所在的小节标题链（H1→…→当前层），思源 setCurrent 同款思路：
+ * 取给定行之前最近的标题，再向上收集各级父标题
  */
-function computeHeadingChain(view: EditorView, items: OutlineItem[]): OutlineItem[] {
-  const head = view.state.selection.main.head;
+function computeChainAt(items: OutlineItem[], line: number): OutlineItem[] {
   let cur = -1;
   for (let i = 0; i < items.length; i++) {
-    if (items[i].from <= head) cur = i;
+    if (items[i].line <= line) cur = i;
     else break;
   }
   if (cur === -1) return [];
@@ -105,6 +104,38 @@ export default function EditorPane() {
     return st;
   };
 
+  /**
+   * 视口锚点：视口顶部所在的小节（随编辑区滚动更新）。
+   * 大纲面板据此高亮当前小节并在滚动时自动跟随——像书签一样标出"读到哪一节了"。
+   */
+  const syncAnchor = useCallback(() => {
+    const view = viewRef.current;
+    if (!view) return;
+    const items = useStore.getState().outline;
+    if (!items.length) return;
+    // 视口顶部对应的文档行：lineBlockAtHeight 内部先做一次测量，保证高度映射准确
+    const block = view.lineBlockAtHeight(view.scrollDOM.scrollTop);
+    if (!block) return;
+    const line = view.state.doc.lineAt(block.from).number;
+    const chain = computeChainAt(items, line);
+    const live = useStore.getState();
+    const prev = live.headingChain;
+    const prevLine = prev.length ? prev[prev.length - 1].line : -1;
+    const nextLine = chain.length ? chain[chain.length - 1].line : -1;
+    if (prevLine === nextLine) return; // 同一小节内滚动不打扰大纲
+    live.setHeadingChain(chain);
+  }, []);
+
+  /** 滚动跟随：rAF 节流，避免高频滚动时反复测量 */
+  const anchorFrame = useRef<number | null>(null);
+  const onScroll = useCallback(() => {
+    if (anchorFrame.current !== null) return;
+    anchorFrame.current = requestAnimationFrame(() => {
+      anchorFrame.current = null;
+      syncAnchor();
+    });
+  }, [syncAnchor]);
+
   const onEditorUpdate = (view: EditorView, u: { docChanged: boolean; selectionSet: boolean }) => {
     if (u.docChanged) {
       // 注意：不能读 storeRef.current 的 docs/settings 快照——markDirty 只改 docs 内容、
@@ -122,23 +153,18 @@ export default function EditorPane() {
         col: pos - ln.from + 1,
       });
 
-      // 大纲 + 当前标题链（400ms 防抖）
+      // 大纲 + 锚点小节（400ms 防抖）
       if (outlineTimer) clearTimeout(outlineTimer);
       outlineTimer = setTimeout(() => {
         const items = computeOutline(view);
         storeRef.current.setOutline(items);
-        storeRef.current.setHeadingChain(computeHeadingChain(view, items));
+        syncAnchor();
       }, 400);
     }
     if (u.selectionSet && !u.docChanged) {
       const pos = view.state.selection.main.head;
       const ln = view.state.doc.lineAt(pos);
       storeRef.current.updateStatus({ line: ln.number, col: pos - ln.from + 1 });
-      // 纯光标移动即时刷新标题链（文档未变，直接用现有大纲项的位置，无需重遍历语法树）。
-      // 注意：这里必须读 store 的实时状态——storeRef.current 只是最近一次 React 渲染的快照，
-      // 文档切换后的 outline 更新不会触发本组件重渲染，读快照会拿到上一份文档的大纲。
-      const live = useStore.getState();
-      live.setHeadingChain(computeHeadingChain(view, live.outline));
     }
   };
 
@@ -159,16 +185,20 @@ export default function EditorPane() {
     viewRef.current = view;
     setView(view);
     shownDocRef.current = doc.id;
+    // 滚动跟随编辑区：视口锚点所在的小节即大纲高亮项
+    view.scrollDOM.addEventListener("scroll", onScroll, { passive: true });
     storeRef.current.updateStatus(countStats(view.state.doc.toString()));
     const items0 = computeOutline(view);
     storeRef.current.setOutline(items0);
-    storeRef.current.setHeadingChain(computeHeadingChain(view, items0));
+    syncAnchor();
     // 仅新建空草稿时自动聚焦；打开已有文件首次载入不抢焦点
     if (!doc.path && doc.initialContent.length === 0) view.focus();
     dismissBootSplash();
 
     return () => {
       const id = storeRef.current.activeDocId;
+      view.scrollDOM.removeEventListener("scroll", onScroll);
+      if (anchorFrame.current !== null) cancelAnimationFrame(anchorFrame.current);
       if (viewRef.current) editorStates.set(id, viewRef.current.state);
       viewRef.current?.destroy();
       viewRef.current = null;
@@ -218,7 +248,7 @@ export default function EditorPane() {
     });
     const items = computeOutline(view);
     storeRef.current.setOutline(items);
-    storeRef.current.setHeadingChain(computeHeadingChain(view, items));
+    syncAnchor();
     // 仅新建空草稿（Ctrl+N）时自动聚焦进入输入；打开已有文件/切换文档
     // 不抢焦点、不定位首行，焦点保留在触发来源（文件树/拖入等）。
     const isNewEmptyDraft = !doc.path && st.doc.length === 0;

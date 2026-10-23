@@ -211,6 +211,35 @@ html[data-sidebar-resizing] .sidebar-shell {
   overflow: hidden;
 }
 
+/* ============================================================
+   大纲条目：级别色阶 + 当前项 / 悬停反馈
+   级别色阶走 CSS 变量（--outline-fg / --outline-fw），
+   悬停与当前项用类选择器覆盖，避免行内样式压过状态样式
+   ============================================================ */
+.outline-row {
+  position: relative;
+}
+.outline-title {
+  color: var(--outline-fg, var(--fg));
+  font-weight: var(--outline-fw, 400);
+}
+.outline-hlabel {
+  color: var(--fg-faint);
+}
+.outline-row:hover .outline-title {
+  color: var(--fg);
+}
+.outline-row:hover .outline-hlabel {
+  color: var(--fg-soft);
+}
+.outline-row.is-current .outline-title {
+  color: var(--accent);
+  font-weight: 500;
+}
+.outline-row.is-current .outline-hlabel {
+  color: var(--accent);
+}
+
 /* 最近打开：内容区高度过渡 */
 .recent-body {
   display: grid;
