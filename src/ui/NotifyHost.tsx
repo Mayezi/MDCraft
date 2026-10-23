@@ -20,9 +20,11 @@ const STYLE: Record<Notification["kind"], { icon: React.ReactNode; cls: string }
 
 function Toast({ item }: { item: Notification }) {
   useEffect(() => {
+    // 带操作按钮的提示不自动消失，等用户处理（点按钮或关闭）
+    if (item.actions?.length) return;
     const timer = window.setTimeout(() => dismissNotification(item.id), DURATION[item.kind]);
     return () => window.clearTimeout(timer);
-  }, [item.id, item.kind]);
+  }, [item.id, item.kind, item.actions]);
 
   const style = STYLE[item.kind];
   return (
@@ -32,7 +34,26 @@ function Toast({ item }: { item: Notification }) {
       className="toast-in pointer-events-auto flex items-start gap-2.5 overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--bg)] px-3 py-2.5 shadow-[0_10px_30px_rgba(0,0,0,0.18)]"
     >
       <span className={`mt-[1px] shrink-0 ${style.cls}`}>{style.icon}</span>
-      <p className="min-w-0 flex-1 text-[12.5px] leading-5 text-[var(--fg)]">{item.message}</p>
+      <div className="min-w-0 flex-1">
+        <p className="text-[12.5px] leading-5 text-[var(--fg)]">{item.message}</p>
+        {item.actions?.length ? (
+          <div className="mt-1.5 flex items-center gap-1.5">
+            {item.actions.map((action) => (
+              <button
+                key={action.label}
+                type="button"
+                onClick={() => {
+                  dismissNotification(item.id);
+                  action.onClick();
+                }}
+                className="cursor-pointer rounded-md border border-[var(--border)] bg-[var(--bg-hover)] px-2 py-[3px] text-[11.5px] font-medium text-[var(--accent)] transition-colors hover:bg-[var(--border)]"
+              >
+                {action.label}
+              </button>
+            ))}
+          </div>
+        ) : null}
+      </div>
       <button
         type="button"
         aria-label="关闭提示"

@@ -11,9 +11,8 @@ import { openDocByPath, exportDocByPath, exportDraftDoc } from "../lib/docAction
 import { isTextEditable, MARKDOWN_EXT } from "../lib/fileTypes";
 import { showUnsupportedFile } from "../lib/unsupportedFile";
 import { openFolder } from "../lib/workspace";
-import { notifyError } from "../lib/notify";
+import { notify, notifyError } from "../lib/notify";
 import RecentFiles from "./RecentFiles";
-import ExportResultDialog from "./ExportResultDialog";
 import ConfirmDialog from "./ConfirmDialog";
 import AppIcon from "./AppIcon";
 import type { FileNode } from "../lib/types";
@@ -23,6 +22,21 @@ function joinPath(dir: string, name: string): string {
   const trimmed = dir.replace(/[\\/]+$/, "");
   const sepChar = /^[A-Za-z]:$/.test(trimmed) || dir.includes("\\") ? "\\" : "/";
   return `${trimmed}${sepChar}${name}`;
+}
+
+/** 导出成功通知：桌面端附带「打开文件 / 打开所在目录」操作，浏览器（无路径）不提示 */
+function notifyExportedFile(path: string | null, label: string) {
+  if (!path) return;
+  notify(`已导出 ${label}`, "success", [
+    {
+      label: "打开文件",
+      onClick: () => void backend.openPath(path).catch((e: unknown) => notifyError(`打开失败：${e}`)),
+    },
+    {
+      label: "打开所在目录",
+      onClick: () => void backend.showInFolder(path).catch((e: unknown) => notifyError(`打开失败：${e}`)),
+    },
+  ]);
 }
 
 /** 目录树「仅显示 Markdown 与资源」时放行的扩展名（与 md-core 历史口径一致） */
@@ -643,8 +657,6 @@ export default function FileTree({ onRecentHeightChange }: { onRecentHeightChang
   const [inEdit, setEdit] = useState<{ path: string; mode: "newfile" | "newdir" | "rename" } | null>(null);
   /** 浏览器模式：草稿右键菜单 */
   const [draftMenu, setDraftMenu] = useState<{ x: number; y: number; docId: string } | null>(null);
-  /** 导出完成提示：待打开的导出文件路径 */
-  const [exportedPath, setExportedPath] = useState<string | null>(null);
   /** 待确认删除的节点（删除走应用内确认框，不用原生 window.confirm） */
   const [pendingDelete, setPendingDelete] = useState<FileNode | null>(null);
   /** 删除失败信息（弹窗保持打开时展示） */
@@ -840,7 +852,9 @@ export default function FileTree({ onRecentHeightChange }: { onRecentHeightChang
           >
             <ExportSubMenu
               onPick={(id) => {
-                if (id === "html") void exportDraftDoc(draftMenu.docId);
+                if (id === "html") {
+                  void exportDraftDoc(draftMenu.docId).then((p) => notifyExportedFile(p, "HTML 文件"));
+                }
                 setDraftMenu(null);
               }}
             />
@@ -1031,8 +1045,7 @@ export default function FileTree({ onRecentHeightChange }: { onRecentHeightChang
             if (!n || n.isDir) return;
             void (async () => {
               try {
-                const out = await exportDocByPath(n.path);
-                if (out) setExportedPath(out);
+                notifyExportedFile(await exportDocByPath(n.path), "HTML 文件");
               } catch (e) {
                 notifyError(`导出失败：${e}`);
               }
@@ -1094,20 +1107,6 @@ export default function FileTree({ onRecentHeightChange }: { onRecentHeightChang
           })();
         }}
       />
-      {exportedPath && (
-        <ExportResultDialog
-          path={exportedPath}
-          onOpen={() => {
-            backend.openPath(exportedPath).catch((e: unknown) => notifyError(`打开失败：${e}`));
-            setExportedPath(null);
-          }}
-          onReveal={() => {
-            backend.showInFolder(exportedPath).catch((e: unknown) => notifyError(`打开失败：${e}`));
-            setExportedPath(null);
-          }}
-          onClose={() => setExportedPath(null)}
-        />
-      )}
     </div>
   );
 }

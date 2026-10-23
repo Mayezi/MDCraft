@@ -158,6 +158,20 @@ function buildBlockDecorations(state: EditorState): DecorationSet {
         }
         return;
       }
+
+      // ---- 分割线上方空行压缩：CM6 行模型中「空行 + ---」的空行仍是独立行、占整行行高，
+      //      视觉上在分割线上方多出大段空隙（思源等块模型产品仅为普通段落间距）。
+      //      这里给该空行打标压成 0 高——保留空行保证「分割线」语法的同时，让分割线贴紧正文 ----
+      if (node.name === "HorizontalRule") {
+        const ln = state.doc.lineAt(from).number;
+        if (ln > 1) {
+          const prev = state.doc.line(ln - 1);
+          if (!prev.text.trim()) {
+            decos.push(Decoration.line({ class: "md-hr-gap" }).range(prev.from));
+          }
+        }
+        return;
+      }
     },
   });
 

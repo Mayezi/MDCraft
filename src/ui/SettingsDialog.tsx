@@ -173,17 +173,12 @@ function AboutPanel() {
             {ABOUT.tech}
           </dd>
         </div>
-        <div className="flex items-start gap-3">
-          <dt className="w-16 shrink-0 text-[12px] text-[var(--fg-faint)]">源码</dt>
-          <dd id="about-repo" className="min-w-0 flex-1 text-[12px] leading-5 text-[var(--fg)]">
-            Mayezi/MDCraft
-          </dd>
-        </div>
       </dl>
 
       <div className="mt-5 flex items-center gap-2">
         <button
           type="button"
+          id="about-repo"
           onClick={() => void backend.openUrl(ABOUT.repo)}
           className={`flex cursor-pointer items-center gap-1.5 rounded-md bg-[var(--accent)] px-3.5 py-1.5 text-[12px] font-medium text-white transition-opacity hover:opacity-90 ${FOCUS_RING}`}
         >
@@ -686,8 +681,8 @@ export default function SettingsDialog({
       {
         id: "about-repo",
         title: "GitHub 仓库",
-        description: "源码、Issue 与历史版本",
-        keywords: ["github", "仓库", "repo", "源码", "issue"],
+        description: "Issue 与历史版本",
+        keywords: ["github", "仓库", "repo", "issue"],
         control: null,
       },
     ],

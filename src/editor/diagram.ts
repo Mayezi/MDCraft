@@ -1,6 +1,7 @@
 // Mermaid / Flowchart / Sequence 懒加载与图表渲染器
 import { WidgetType, type EditorView } from "@codemirror/view";
-import { notifySuccess, notifyError } from "../lib/notify";
+import { notifySuccess, notifyError, notify } from "../lib/notify";
+import { saveDiagramImage, openPath, showInFolder, isTauri } from "../lib/backend";
 
 // ---------- Lucide 矢量图标定义（对齐全局风格，摒弃 emoji） ----------
 const ICON_IMAGE = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>`;
@@ -104,13 +105,14 @@ async function svgToPngBlob(svgElement: SVGSVGElement | null, rawSvg: string, sc
   const serializer = new XMLSerializer();
   const normalizedSvg = serializer.serializeToString(svg);
 
+  // 用 data: URL 而非 blob URL 加载 SVG：WebView2 会把 blob 源的图片判为跨源，
+  // drawImage 后 canvas 被污染，toBlob 抛 SecurityError（Tainted canvases）。
+  // data: URL 属同源，不污染 canvas，PNG 转换在桌面端同样可用。
+  const url = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(normalizedSvg);
+
   return new Promise((resolve, reject) => {
     const img = new Image();
-    const blob = new Blob([normalizedSvg], { type: "image/svg+xml;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-
     img.onload = () => {
-      URL.revokeObjectURL(url);
       const canvas = document.createElement("canvas");
       canvas.width = Math.round(width * scale);
       canvas.height = Math.round(height * scale);
@@ -131,7 +133,6 @@ async function svgToPngBlob(svgElement: SVGSVGElement | null, rawSvg: string, sc
     };
 
     img.onerror = () => {
-      URL.revokeObjectURL(url);
       reject(new Error("加载 SVG 图像失败"));
     };
 
@@ -139,15 +140,27 @@ async function svgToPngBlob(svgElement: SVGSVGElement | null, rawSvg: string, sc
   });
 }
 
-function downloadBlob(blob: Blob, filename: string) {
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = filename;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  setTimeout(() => URL.revokeObjectURL(url), 1000);
+/** 保存 PNG / SVG：桌面端走系统保存对话框写盘，浏览器回退为下载。
+ *  返回保存路径（桌面取消 / 浏览器模式返回 null） */
+async function savePngBlob(blob: Blob): Promise<string | null> {
+  const buf = await blob.arrayBuffer();
+  return saveDiagramImage(new Uint8Array(buf as ArrayBuffer), "png", `diagram-${Date.now()}.png`);
+}
+
+async function saveSvgText(svgString: string): Promise<string | null> {
+  return saveDiagramImage(new TextEncoder().encode(svgString), "svg", `diagram-${Date.now()}.svg`);
+}
+
+/** 导出成功提示：桌面端附带「打开文件 / 打开所在目录」操作，浏览器仅提示 */
+function notifyExported(path: string | null, label: string) {
+  if (path) {
+    notify(`已导出 ${label}`, "success", [
+      { label: "打开文件", onClick: () => void openPath(path) },
+      { label: "打开所在目录", onClick: () => void showInFolder(path) },
+    ]);
+  } else if (!isTauri) {
+    notifySuccess(`已导出 ${label}`);
+  }
 }
 
 let activeDiagramMenu: { close: () => void } | null = null;
@@ -195,8 +208,8 @@ function openDiagramExportMenu(anchor: HTMLElement, svgString: string, previewEl
         // fallback to download
       }
     }
-    downloadBlob(blob, `diagram-${Date.now()}.png`);
-    notifySuccess("已将 PNG 图表下载到本地");
+    const saved = await savePngBlob(blob);
+    notifyExported(saved, "PNG 图片");
   });
 
   addItem(ICON_CODE, "复制源码", "SVG", async () => {
@@ -215,14 +228,11 @@ function openDiagramExportMenu(anchor: HTMLElement, svgString: string, previewEl
   addItem(ICON_DOWNLOAD, "下载图片", "PNG", async () => {
     const svgEl = previewEl.querySelector("svg");
     const blob = await svgToPngBlob(svgEl, svgString, 2);
-    downloadBlob(blob, `diagram-${Date.now()}.png`);
-    notifySuccess("已导出 PNG 图片文件");
+    notifyExported(await savePngBlob(blob), "PNG 图片");
   });
 
-  addItem(ICON_VECTOR, "下载矢量图", "SVG", () => {
-    const blob = new Blob([svgString], { type: "image/svg+xml;charset=utf-8" });
-    downloadBlob(blob, `diagram-${Date.now()}.svg`);
-    notifySuccess("已导出 SVG 矢量图");
+  addItem(ICON_VECTOR, "下载矢量图", "SVG", async () => {
+    notifyExported(await saveSvgText(svgString), "SVG 矢量图");
   });
 
   document.body.appendChild(menu);
@@ -369,7 +379,13 @@ export class DiagramWidget extends WidgetType {
         if (navigator.clipboard && typeof ClipboardItem !== "undefined") {
           await navigator.clipboard.write([new ClipboardItem({ "image/png": blob })]);
         } else {
-          downloadBlob(blob, `diagram-${Date.now()}.png`);
+          const saved = await savePngBlob(blob);
+          if (saved) {
+            notify(`已导出 PNG 图片`, "success", [
+              { label: "打开文件", onClick: () => void openPath(saved) },
+              { label: "打开所在目录", onClick: () => void showInFolder(saved) },
+            ]);
+          }
         }
         copyBtn.innerHTML = `${ICON_CHECK}<span>已复制</span>`;
         copyBtn.classList.add("is-copied");

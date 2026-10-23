@@ -7,10 +7,17 @@ import { useEffect, useState } from "react";
 
 export type NotifyKind = "info" | "success" | "error";
 
+export interface NotifyAction {
+  label: string;
+  onClick: () => void;
+}
+
 export interface Notification {
   id: number;
   kind: NotifyKind;
   message: string;
+  /** 可选操作按钮（如「打开文件」）；存在时不自动消失，等待用户处理 */
+  actions?: NotifyAction[];
 }
 
 let items: Notification[] = [];
@@ -23,9 +30,13 @@ function emit() {
 }
 
 /** 弹出一条提示，返回其 id（可用于提前移除） */
-export function notify(message: string, kind: NotifyKind = "info"): number {
+export function notify(
+  message: string,
+  kind: NotifyKind = "info",
+  actions?: NotifyAction[],
+): number {
   const id = ++seq;
-  items = [...items, { id, kind, message }];
+  items = [...items, { id, kind, message, ...(actions?.length ? { actions } : {}) }];
   emit();
   return id;
 }

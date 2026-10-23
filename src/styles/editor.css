@@ -482,17 +482,29 @@
   font-size: 0.9em;
 }
 
-/* 分割线渲染 */
+/* 分割线渲染（固定高度 + line-height:0，脱离所在行行高，上下间距紧凑） */
 .md-hr {
   display: block;
   width: 100%;
-  padding: 1.1em 0;
+  height: 6px;
+  padding: 0;
   margin: 0;
+  line-height: 0;
+  font-size: 0;
+  display: flex;
+  align-items: center;
 }
 .md-hr-line {
   display: block;
   width: 100%;
-  border-top: 2px solid var(--border);
+  border-top: 1px solid var(--border);
+}
+/* 分割线上方空行压缩：空行 + 下一行是分割线时，该空行压成 0 高，
+   去掉 CM6 行模型多出的整行空隙（思源式：分割线仅与上方正文保有段落间距） */
+.cm-line.md-hr-gap {
+  line-height: 0;
+  height: 0;
+  overflow: hidden;
 }
 
 /* 任务复选框 */

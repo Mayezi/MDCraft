@@ -29,6 +29,7 @@ pub fn run() {
             commands::open_file,
             commands::write_file,
             commands::save_asset,
+            commands::save_binary_file,
             commands::list_dir,
             commands::watch_dir,
             commands::create_file,

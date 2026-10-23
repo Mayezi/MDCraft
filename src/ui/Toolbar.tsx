@@ -295,7 +295,7 @@ export default function Toolbar() {
       </div>
 
       <div className="ml-auto flex items-stretch gap-1">
-        <Tooltip content="GitHub 开源仓库 (Mayezi/MDCraft)">
+        <Tooltip content="GitHub 仓库">
           <a
             href="https://github.com/Mayezi/MDCraft"
             target="_blank"

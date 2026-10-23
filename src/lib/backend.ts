@@ -304,6 +304,28 @@ export async function initialFilePath(): Promise<string | null> {
   }
 }
 
+/** 保存 PNG / SVG 到本地：桌面端弹系统保存对话框写盘（`<a download>` 在 WebView 无效），
+ *  浏览器回退为直接下载。返回保存到的绝对路径（桌面取消返回 null，浏览器返回 null）。 */
+export async function saveDiagramImage(
+  data: Uint8Array,
+  ext: "png" | "svg",
+  defaultName: string,
+): Promise<string | null> {
+  if (!isTauri) {
+    const type = ext === "svg" ? "image/svg+xml;charset=utf-8" : "image/png";
+    downloadBlob(defaultName, new Blob([data.buffer as ArrayBuffer], { type }));
+    return null;
+  }
+  const { save } = await import("@tauri-apps/plugin-dialog");
+  const path = await save({
+    defaultPath: defaultName,
+    filters: [{ name: ext === "svg" ? "SVG 矢量图" : "PNG 图片", extensions: [ext] }],
+  });
+  if (typeof path !== "string") return null;
+  await invoke("save_binary_file", { path, data: Array.from(data) });
+  return path;
+}
+
 // ---------- 本地资源（图片） ----------
 
 /** 保存图片到文档同级 assets/，返回 markdown 可用的相对路径（如 assets/xxx.png） */

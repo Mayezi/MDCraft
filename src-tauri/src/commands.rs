@@ -106,6 +106,12 @@ pub fn save_asset(
         .map_err(|e| format!("保存图片失败: {e}"))
 }
 
+/// 原子写入任意二进制文件到指定路径（图表导出 PNG / SVG 等；路径由前端保存对话框提供）
+#[tauri::command]
+pub fn save_binary_file(path: String, data: Vec<u8>) -> Result<(), String> {
+    fsutil::atomic_write_bytes(Path::new(&path), &data).map_err(|e| format!("保存失败: {e}"))
+}
+
 #[tauri::command]
 pub async fn list_dir(app: AppHandle, root: String) -> Result<Vec<workspace::FileNode>, String> {
     allow_asset_dir(&app, Path::new(&root));
