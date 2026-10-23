@@ -12,3 +12,4 @@ bun.lock
 metadata.json
 .aistudio/
 public/assets/
+.idea/
