@@ -696,8 +696,7 @@
   font-family: var(--mono-font);
   font-size: 10.5px;
   font-weight: 600;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+  letter-spacing: 0.04em;
   color: var(--fg-faint);
   background: transparent;
   border: none;
@@ -756,8 +755,7 @@
   font-family: var(--mono-font);
   font-size: 10.5px;
   font-weight: 600;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+  letter-spacing: 0.04em;
   text-align: left;
   color: var(--fg-faint);
   background: var(--bg-soft);
@@ -936,15 +934,15 @@
   padding: 0.8em 0;
 }
 .md-diagram-block {
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  background: var(--editor-bg);
+  border: 1px solid var(--code-border);
+  border-radius: var(--code-radius, 8px);
+  background: var(--code-bg);
   overflow: hidden;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
-  transition: border-color 0.15s ease;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
+  transition: box-shadow 0.15s ease;
 }
 .md-diagram-block:hover {
-  border-color: var(--accent);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
 }
 .md-diagram-head {
   display: flex;
@@ -952,15 +950,14 @@
   justify-content: space-between;
   padding: 6px 12px;
   background: var(--bg-soft);
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid var(--code-border);
 }
 .md-diagram-badge {
   font-size: 11px;
   font-family: var(--font-mono, monospace);
-  font-weight: 600;
-  color: var(--accent);
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
+  font-weight: 500;
+  color: var(--fg-soft);
+  letter-spacing: 0.3px;
 }
 .md-diagram-actions {
   display: flex;
@@ -968,19 +965,83 @@
   gap: 6px;
 }
 .md-diagram-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
   font-size: 11.5px;
-  padding: 2.5px 9px;
+  padding: 2.5px 8px;
   border-radius: 5px;
   border: 1px solid var(--border);
   background: var(--bg);
   color: var(--fg-soft);
   cursor: pointer;
   transition: all 0.15s ease;
+  user-select: none;
 }
 .md-diagram-btn:hover {
   background: var(--bg-hover);
   color: var(--fg);
-  border-color: var(--accent);
+}
+.md-diagram-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+/* 导出下拉菜单 */
+.md-diagram-menu {
+  position: fixed;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 4px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+  color: var(--fg);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.16);
+  user-select: none;
+  animation: md-diag-menu-in 0.1s ease-out;
+}
+@keyframes md-diag-menu-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+.md-diagram-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 5px 8px;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--fg);
+  font-size: 12px;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.1s ease, color 0.1s ease;
+}
+.md-diagram-menu-item:hover {
+  background: var(--bg-hover);
+  color: var(--accent);
+}
+.md-diagram-menu-icon {
+  font-size: 13px;
+  line-height: 1;
+  width: 16px;
+  text-align: center;
+}
+.md-diagram-menu-sep {
+  height: 1px;
+  background: var(--border);
+  margin: 3px 4px;
 }
 .md-diagram-preview {
   display: flex;

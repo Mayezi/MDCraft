@@ -1,5 +1,6 @@
 // Mermaid / Flowchart / Sequence 懒加载与图表渲染器
 import { WidgetType, type EditorView } from "@codemirror/view";
+import { notifySuccess, notifyError } from "../lib/notify";
 
 let mermaidPromise: Promise<typeof import("mermaid")["default"]> | null = null;
 
@@ -56,7 +57,187 @@ export async function renderDiagramSvg(code: string, lang: string, isDark: boole
   return svg;
 }
 
-/** 块级图表交互部件（Mermaid / 流程图 / 时序图）：实时渲染 SVG + 可切换就地编辑 */
+/** 将 SVG 转换为高清 PNG Blob */
+async function svgToPngBlob(svgElement: SVGSVGElement | null, rawSvg: string, scale = 2): Promise<Blob> {
+  let width = 800;
+  let height = 600;
+
+  if (svgElement) {
+    const bbox = svgElement.getBoundingClientRect();
+    if (bbox.width > 0 && bbox.height > 0) {
+      width = bbox.width;
+      height = bbox.height;
+    }
+  }
+
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(rawSvg, "image/svg+xml");
+  const svg = doc.querySelector("svg");
+  if (!svg) throw new Error("未找到有效 SVG 图表");
+
+  const vb = svg.getAttribute("viewBox");
+  if (vb) {
+    const parts = vb.trim().split(/[\s,]+/).map(Number);
+    if (parts.length === 4 && parts[2] > 0 && parts[3] > 0) {
+      if (!width || width === 800) width = parts[2];
+      if (!height || height === 600) height = parts[3];
+    }
+  }
+  svg.setAttribute("width", String(width));
+  svg.setAttribute("height", String(height));
+  if (!svg.getAttribute("xmlns")) {
+    svg.setAttribute("xmlns", "http://www.w3.org/2000/svg");
+  }
+
+  const serializer = new XMLSerializer();
+  const normalizedSvg = serializer.serializeToString(svg);
+
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    const blob = new Blob([normalizedSvg], { type: "image/svg+xml;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      const canvas = document.createElement("canvas");
+      canvas.width = Math.round(width * scale);
+      canvas.height = Math.round(height * scale);
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return reject(new Error("无法创建画布上下文"));
+
+      const isDark = document.documentElement.dataset.themeMode === "dark";
+      ctx.fillStyle = isDark ? "#1e1e20" : "#ffffff";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      ctx.scale(scale, scale);
+      ctx.drawImage(img, 0, 0, width, height);
+
+      canvas.toBlob((b) => {
+        if (b) resolve(b);
+        else reject(new Error("生成图片失败"));
+      }, "image/png");
+    };
+
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      reject(new Error("加载 SVG 图像失败"));
+    };
+
+    img.src = url;
+  });
+}
+
+function downloadBlob(blob: Blob, filename: string) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+let activeDiagramMenu: { close: () => void } | null = null;
+
+function openDiagramExportMenu(anchor: HTMLElement, svgString: string, previewEl: HTMLElement) {
+  activeDiagramMenu?.close();
+
+  const menu = document.createElement("div");
+  menu.className = "md-diagram-menu";
+
+  const addItem = (icon: string, label: string, action: () => Promise<void> | void) => {
+    const item = document.createElement("button");
+    item.type = "button";
+    item.className = "md-diagram-menu-item";
+    item.innerHTML = `<span class="md-diagram-menu-icon">${icon}</span><span>${label}</span>`;
+    item.addEventListener("mousedown", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+    });
+    item.addEventListener("click", async (e) => {
+      e.stopPropagation();
+      close();
+      try {
+        await action();
+      } catch (err: unknown) {
+        notifyError(err instanceof Error ? err.message : "导出失败");
+      }
+    });
+    menu.appendChild(item);
+  };
+
+  addItem("🖼️", "复制 PNG 图片", async () => {
+    const svgEl = previewEl.querySelector("svg");
+    const blob = await svgToPngBlob(svgEl, svgString, 2);
+    if (navigator.clipboard && typeof ClipboardItem !== "undefined") {
+      try {
+        await navigator.clipboard.write([new ClipboardItem({ "image/png": blob })]);
+        notifySuccess("已复制 PNG 图片到剪贴板");
+        return;
+      } catch {
+        // fallback to download
+      }
+    }
+    downloadBlob(blob, `diagram-${Date.now()}.png`);
+    notifySuccess("已将 PNG 图表下载到本地");
+  });
+
+  addItem("📋", "复制 SVG 代码", async () => {
+    try {
+      await navigator.clipboard.writeText(svgString);
+      notifySuccess("已复制 SVG 代码到剪贴板");
+    } catch {
+      notifyError("复制失败");
+    }
+  });
+
+  const sep = document.createElement("div");
+  sep.className = "md-diagram-menu-sep";
+  menu.appendChild(sep);
+
+  addItem("💾", "下载 PNG 图片", async () => {
+    const svgEl = previewEl.querySelector("svg");
+    const blob = await svgToPngBlob(svgEl, svgString, 2);
+    downloadBlob(blob, `diagram-${Date.now()}.png`);
+    notifySuccess("已导出 PNG 图片文件");
+  });
+
+  addItem("📐", "下载 SVG 矢量图", () => {
+    const blob = new Blob([svgString], { type: "image/svg+xml;charset=utf-8" });
+    downloadBlob(blob, `diagram-${Date.now()}.svg`);
+    notifySuccess("已导出 SVG 矢量图");
+  });
+
+  document.body.appendChild(menu);
+
+  const rect = anchor.getBoundingClientRect();
+  const width = 160;
+  menu.style.width = `${width}px`;
+  menu.style.left = `${Math.max(8, Math.min(rect.right - width, window.innerWidth - width - 8))}px`;
+  menu.style.top = `${rect.bottom + 4}px`;
+
+  let closed = false;
+  const close = () => {
+    if (closed) return;
+    closed = true;
+    document.removeEventListener("pointerdown", onDocPointer, true);
+    window.removeEventListener("resize", close);
+    menu.remove();
+    if (activeDiagramMenu?.close === close) activeDiagramMenu = null;
+  };
+
+  const onDocPointer = (e: PointerEvent) => {
+    if (menu.contains(e.target as Node) || anchor.contains(e.target as Node)) return;
+    close();
+  };
+
+  document.addEventListener("pointerdown", onDocPointer, true);
+  window.addEventListener("resize", close);
+  activeDiagramMenu = { close };
+}
+
+/** 块级图表交互部件（Mermaid / 流程图 / 时序图）：实时渲染 SVG + 可切换就地编辑 + 导出 */
 export class DiagramWidget extends WidgetType {
   constructor(
     readonly code: string,
@@ -90,11 +271,19 @@ export class DiagramWidget extends WidgetType {
     const actions = document.createElement("div");
     actions.className = "md-diagram-actions";
 
+    const exportBtn = document.createElement("button");
+    exportBtn.type = "button";
+    exportBtn.className = "md-diagram-btn";
+    exportBtn.innerHTML = `<span>导出</span><span style="font-size:9px;opacity:0.6;">▾</span>`;
+    exportBtn.title = "导出图表（PNG / SVG）";
+    exportBtn.disabled = true;
+
     const toggleBtn = document.createElement("button");
     toggleBtn.type = "button";
     toggleBtn.className = "md-diagram-btn";
     toggleBtn.textContent = "编辑代码";
 
+    actions.appendChild(exportBtn);
     actions.appendChild(toggleBtn);
     bar.appendChild(badge);
     bar.appendChild(actions);
@@ -116,6 +305,7 @@ export class DiagramWidget extends WidgetType {
 
     let isEditing = false;
     let currentCode = this.code;
+    let lastSvg = "";
 
     const isDark =
       document.documentElement.dataset.themeMode === "dark" ||
@@ -124,8 +314,12 @@ export class DiagramWidget extends WidgetType {
     const doRender = async (source: string) => {
       try {
         const svg = await renderDiagramSvg(source, this.lang, isDark);
+        lastSvg = svg;
         preview.innerHTML = svg;
+        exportBtn.disabled = isEditing;
       } catch (err: unknown) {
+        lastSvg = "";
+        exportBtn.disabled = true;
         const message = err instanceof Error ? err.message : String(err);
         preview.innerHTML = `<div class="md-diagram-error"><span class="md-diagram-error-title">图表语法提示</span><pre>${message}</pre></div>`;
       }
@@ -133,6 +327,15 @@ export class DiagramWidget extends WidgetType {
     };
 
     void doRender(currentCode);
+
+    exportBtn.addEventListener("mousedown", (e) => e.stopPropagation());
+    exportBtn.addEventListener("click", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      if (lastSvg) {
+        openDiagramExportMenu(exportBtn, lastSvg, preview);
+      }
+    });
 
     toggleBtn.addEventListener("mousedown", (e) => e.stopPropagation());
     toggleBtn.addEventListener("click", (e) => {
@@ -143,11 +346,14 @@ export class DiagramWidget extends WidgetType {
         preview.style.display = "none";
         editWrap.style.display = "block";
         toggleBtn.textContent = "图表预览";
+        exportBtn.style.display = "none";
         editArea.focus();
       } else {
         editWrap.style.display = "none";
         preview.style.display = "flex";
         toggleBtn.textContent = "编辑代码";
+        exportBtn.style.display = "inline-flex";
+        exportBtn.disabled = !lastSvg;
         if (editArea.value !== currentCode) {
           currentCode = editArea.value;
           sync();
