@@ -232,12 +232,12 @@ export function buildWatermarkDataUrl(text: string, isDark: boolean): string {
 
 // ---------- Markdown 解析与 HTML 构建 ----------
 
-const EXPORT_CSS = `:root{--fg:#1f2328;--fg-soft:#59636e;--accent:#0969da;--border:#d1d9e0;--code-bg:#f6f8fa;--bg-page:#ffffff}
-@media(prefers-color-scheme:dark){:root{--fg:#e6edf3;--fg-soft:#9198a1;--accent:#4493f8;--border:#3d444d;--code-bg:#151b23;--bg-page:#0d1117}}
+const EXPORT_CSS = `:root{--fg:#1f2328;--fg-soft:#59636e;--accent:#0969da;--border:#d1d9e0;--code-bg:#f6f8fa;--bg-page:#ffffff;--table-border:#d1d9e0;--table-head-bg:#f6f8fa;--table-zebra:rgba(246,248,250,0.65)}
+@media(prefers-color-scheme:dark){:root{--fg:#e6edf3;--fg-soft:#9198a1;--accent:#4493f8;--border:#3d444d;--code-bg:#151b23;--bg-page:#0d1117;--table-border:#3d444d;--table-head-bg:#151b23;--table-zebra:rgba(21,27,35,0.65)}}
 *{box-sizing:border-box}
 body{margin:0;padding:48px 24px;font-family:-apple-system,'Segoe UI','PingFang SC','Microsoft YaHei',sans-serif;color:var(--fg);background:var(--bg-page);line-height:1.75}
 article{max-width:820px;margin:0 auto}
-h1,h2{padding-bottom:.3em;border-bottom:1px solid var(--border)}
+h1,h2{padding-bottom:.25em}
 h1{font-size:2em}h2{font-size:1.5em}h3{font-size:1.25em}
 a{color:var(--accent);text-decoration:none}
 a:hover{text-decoration:underline}
@@ -246,10 +246,12 @@ code{background:var(--code-bg);border-radius:4px;padding:2px 5px;font-size:.9em;
 pre{background:var(--code-bg);border-radius:8px;padding:14px 16px;overflow:auto;line-height:1.5;border:1px solid var(--border)}
 pre code{background:none;padding:0;border:0}
 blockquote{border-left:.3em solid var(--accent);margin:1em 0;padding:.2em 1em;color:var(--fg-soft);background:var(--code-bg);border-radius:0 6px 6px 0}
-table{border-collapse:collapse;margin:1em 0;width:100%}
-th,td{border:1px solid var(--border);padding:8px 14px;text-align:left}
-th{background:var(--code-bg);font-weight:600}
-tr:nth-child(2n){background:color-mix(in srgb,var(--code-bg) 50%,transparent)}
+table{border-collapse:collapse;margin:.8em 0 1.2em;width:auto;max-width:100%}
+th,td{border:1px solid var(--table-border);padding:6px 13px;line-height:1.6;font-size:.95em;text-align:left;word-break:break-word}
+th{background:var(--table-head-bg);font-weight:600}
+tbody tr:nth-child(2n) td{background:var(--table-zebra)}
+td:empty::after{content:"\\00a0"}
+table img{max-width:100%;max-height:2.4em;vertical-align:middle;border-radius:4px}
 img{max-width:100%;border-radius:6px}
 .math-block{margin:1em 0;text-align:center;overflow-x:auto}
 .md-export-diagram{margin:1.2em 0;text-align:center;overflow-x:auto}
@@ -454,17 +456,31 @@ function collectLoadedKatexCss(): string {
   return chunks.join("\n");
 }
 
-/** PDF 预览与导出共用的正文排版样式 */
-export function buildPdfArticleCss(options: {
-  isDark: boolean;
+export interface PdfThemeColors {
   bgColor: string;
   fgColor: string;
   fgSoftColor: string;
   accentColor: string;
   borderColor: string;
   codeBgColor: string;
-}): string {
-  const { bgColor, fgColor, fgSoftColor, accentColor, borderColor, codeBgColor } = options;
+  tableBorderColor?: string;
+  tableHeadBgColor?: string;
+  tableZebraColor?: string;
+}
+
+/** PDF 预览与导出共用的正文排版样式 */
+export function buildPdfArticleCss(options: { isDark: boolean } & PdfThemeColors): string {
+  const {
+    bgColor,
+    fgColor,
+    fgSoftColor,
+    accentColor,
+    borderColor,
+    codeBgColor,
+    tableBorderColor = borderColor,
+    tableHeadBgColor = codeBgColor,
+    tableZebraColor = `color-mix(in srgb, ${codeBgColor} 55%, transparent)`,
+  } = options;
   return `
 .pdf-paper-root {
   --pdf-bg: ${bgColor};
@@ -473,6 +489,9 @@ export function buildPdfArticleCss(options: {
   --pdf-accent: ${accentColor};
   --pdf-border: ${borderColor};
   --pdf-code-bg: ${codeBgColor};
+  --pdf-table-border: ${tableBorderColor};
+  --pdf-table-head-bg: ${tableHeadBgColor};
+  --pdf-table-zebra: ${tableZebraColor};
   color: var(--pdf-fg);
   background-color: var(--pdf-bg);
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
@@ -490,9 +509,8 @@ export function buildPdfArticleCss(options: {
   font-size: 2.1em;
   font-weight: 700;
   line-height: 1.3;
-  margin: 0 0 0.75em 0;
-  padding-bottom: 0.35em;
-  border-bottom: 2px solid var(--pdf-border);
+  margin: 0 0 0.8em 0;
+  padding-bottom: 0.2em;
   color: var(--pdf-fg);
 }
 .pdf-paper-root h1,
@@ -516,13 +534,11 @@ export function buildPdfArticleCss(options: {
 }
 .pdf-paper-root h1 {
   font-size: 1.75em;
-  padding-bottom: 0.28em;
-  border-bottom: 1px solid var(--pdf-border);
+  padding-bottom: 0.2em;
 }
 .pdf-paper-root h2 {
   font-size: 1.42em;
-  padding-bottom: 0.24em;
-  border-bottom: 1px solid var(--pdf-border);
+  padding-bottom: 0.15em;
 }
 .pdf-paper-root h3 { font-size: 1.2em; }
 .pdf-paper-root h4 { font-size: 1.05em; }
@@ -590,7 +606,9 @@ export function buildPdfArticleCss(options: {
 }
 .pdf-paper-root table {
   border-collapse: collapse;
-  width: 100%;
+  margin: 0.8em 0 1.2em 0;
+  width: auto;
+  max-width: 100%;
   page-break-inside: auto;
 }
 .pdf-paper-root tr {
@@ -599,13 +617,28 @@ export function buildPdfArticleCss(options: {
 }
 .pdf-paper-root th,
 .pdf-paper-root td {
-  border: 1px solid var(--pdf-border);
-  padding: 7px 12px;
+  border: 1px solid var(--pdf-table-border);
+  padding: 6px 13px;
+  line-height: 1.6;
+  font-size: 0.95em;
   text-align: left;
+  word-break: break-word;
 }
 .pdf-paper-root th {
-  background: var(--pdf-code-bg);
+  background-color: var(--pdf-table-head-bg);
   font-weight: 600;
+}
+.pdf-paper-root tbody tr:nth-child(2n) td {
+  background-color: var(--pdf-table-zebra);
+}
+.pdf-paper-root td:empty::after {
+  content: "\\00a0";
+}
+.pdf-paper-root table img {
+  max-width: 100%;
+  max-height: 2.4em;
+  vertical-align: middle;
+  border-radius: 4px;
 }
 .pdf-paper-root img {
   max-width: 100%;
@@ -653,14 +686,7 @@ export function buildStandalonePdfHtml(params: {
   previewNode: HTMLElement;
   config: PdfExportConfig;
   isDark: boolean;
-  colors: {
-    bgColor: string;
-    fgColor: string;
-    fgSoftColor: string;
-    accentColor: string;
-    borderColor: string;
-    codeBgColor: string;
-  };
+  colors: PdfThemeColors;
 }): string {
   const { title, previewNode, config, isDark, colors } = params;
   const { cssSize } = getPaperDimensions(config.pageSize, config.landscape);

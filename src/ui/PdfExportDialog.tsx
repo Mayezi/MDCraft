@@ -34,6 +34,7 @@ import {
   type MarginType,
   type PaperSize,
   type PdfExportConfig,
+  type PdfThemeColors,
 } from "../lib/export";
 import { notify, notifyError } from "../lib/notify";
 
@@ -69,9 +70,9 @@ function Switch({
   );
 }
 
-/** 读取当前 DOM 根上的主题色变量，用于「跟随当前主题」模式下的纸张渲染 */
-function readCurrentThemeColors(isDark: boolean) {
-  if (!isDark) {
+/** 读取当前主题色变量或浅色白纸配色，用于预览与导出渲染（保证表格与编辑器一致） */
+function readCurrentThemeColors(isDark: boolean, followTheme: boolean): PdfThemeColors {
+  if (!followTheme && !isDark) {
     return {
       bgColor: "#ffffff",
       fgColor: "#1f2328",
@@ -79,17 +80,27 @@ function readCurrentThemeColors(isDark: boolean) {
       accentColor: "#0969da",
       borderColor: "#d1d9e0",
       codeBgColor: "#f6f8fa",
+      tableBorderColor: "#d1d9e0",
+      tableHeadBgColor: "#f6f8fa",
+      tableZebraColor: "rgba(246, 248, 250, 0.65)",
     };
   }
-  const style = getComputedStyle(document.documentElement);
-  const get = (prop: string, fallback: string) => style.getPropertyValue(prop).trim() || fallback;
+  const style = typeof document !== "undefined" ? getComputedStyle(document.documentElement) : null;
+  const get = (prop: string, fallback: string) => style?.getPropertyValue(prop).trim() || fallback;
+  const defBg = isDark ? "#14161a" : "#ffffff";
+  const defFg = isDark ? "#e6edf3" : "#1f2328";
+  const defBorder = isDark ? "#30363d" : "#d1d9e0";
+  const defBgSoft = isDark ? "#1c2026" : "#f6f8fa";
   return {
-    bgColor: get("--bg", "#14161a"),
-    fgColor: get("--fg", "#e6edf3"),
-    fgSoftColor: get("--fg-soft", "#9198a1"),
-    accentColor: get("--accent", "#4493f8"),
-    borderColor: get("--border", "#30363d"),
-    codeBgColor: get("--bg-soft", "#1c2026"),
+    bgColor: get("--editor-bg", get("--bg", defBg)),
+    fgColor: get("--fg", defFg),
+    fgSoftColor: get("--fg-soft", isDark ? "#9198a1" : "#59636e"),
+    accentColor: get("--accent", isDark ? "#4493f8" : "#0969da"),
+    borderColor: get("--border", defBorder),
+    codeBgColor: get("--code-bg", get("--bg-soft", defBgSoft)),
+    tableBorderColor: get("--table-border", get("--border", defBorder)),
+    tableHeadBgColor: get("--table-head-bg", get("--bg-soft", defBgSoft)),
+    tableZebraColor: get("--table-zebra", isDark ? "rgba(255,255,255,0.03)" : "rgba(0,0,0,0.025)"),
   };
 }
 
@@ -138,9 +149,9 @@ function PdfExportModalContent({
 
   const isPaperDark = config.theme === "follow" && appThemeMode === "dark";
   const paperColors = useMemo(
-    () => readCurrentThemeColors(isPaperDark),
+    () => readCurrentThemeColors(isPaperDark, config.theme === "follow"),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [isPaperDark, appThemeMode, appPalette],
+    [isPaperDark, config.theme, appThemeMode, appPalette],
   );
 
   const paperDim = useMemo(
