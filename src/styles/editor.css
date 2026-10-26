@@ -270,6 +270,7 @@
    光标所在项显源码：装饰不挂 → 空格与标记还原显示 */
 .cm-editor {
   --md-list-base: 6px;
+  --md-quote-base: 6px;
 }
 .cm-editor .cm-line.md-list-line {
   text-indent: -1.4em;
@@ -586,39 +587,45 @@
 /* 引用块：无背景色，仅左侧竖线（data-depth 表达嵌套层级）。
    嵌套层级 = 每层一根 3px 竖线 + 内容逐级缩进 1.1em/级：
    border-left 只能画单根且固定行首，多层级改用 background 渐变竖线（视觉等价）——
-   depth N 的竖线位于 (N-1)*1.1em（即每层引用自身的左缘），内容缩进 N*1.1em */
+   第一层竖线严格对齐正文文本左基线（--md-quote-base 默认 6px，对齐 CM6 .cm-line 文本起点），
+   depth N 的竖线位于 var(--md-quote-base) + (N-1)*1.1em，内容缩进 var(--md-quote-base) + N*1.1em */
+.cm-editor .cm-line.md-line-quote,
 .md-line-quote {
   --quote-line: linear-gradient(to right, var(--quote-border), var(--quote-border));
   color: var(--quote-color);
-  padding-left: 1.1em !important;
+  padding-left: calc(var(--md-quote-base, 6px) + 1.1em) !important;
   background-image: var(--quote-line);
   background-size: 3px 100%;
-  background-position: 0 0;
+  background-position: var(--md-quote-base, 6px) 0;
   background-repeat: no-repeat;
 }
+.cm-editor .cm-line.md-line-quote[data-depth="2"],
 .md-line-quote[data-depth="2"] {
-  padding-left: 2.2em !important;
+  padding-left: calc(var(--md-quote-base, 6px) + 2.2em) !important;
   background-image: var(--quote-line), var(--quote-line);
   background-size: 3px 100%, 3px 100%;
-  background-position: 0 0, 1.1em 0;
+  background-position: var(--md-quote-base, 6px) 0, calc(var(--md-quote-base, 6px) + 1.1em) 0;
 }
+.cm-editor .cm-line.md-line-quote[data-depth="3"],
 .md-line-quote[data-depth="3"] {
-  padding-left: 3.3em !important;
+  padding-left: calc(var(--md-quote-base, 6px) + 3.3em) !important;
   background-image: var(--quote-line), var(--quote-line), var(--quote-line);
-  background-size: 3px 100%, 3px 100%, 3px 100%;
-  background-position: 0 0, 1.1em 0, 2.2em 0;
+  background-size: 3px 100%, 3px 100%;
+  background-position: var(--md-quote-base, 6px) 0, calc(var(--md-quote-base, 6px) + 1.1em) 0, calc(var(--md-quote-base, 6px) + 2.2em) 0;
 }
+.cm-editor .cm-line.md-line-quote[data-depth="4"],
 .md-line-quote[data-depth="4"] {
-  padding-left: 4.4em !important;
+  padding-left: calc(var(--md-quote-base, 6px) + 4.4em) !important;
   background-image: var(--quote-line), var(--quote-line), var(--quote-line), var(--quote-line);
-  background-size: 3px 100%, 3px 100%, 3px 100%, 3px 100%;
-  background-position: 0 0, 1.1em 0, 2.2em 0, 3.3em 0;
+  background-size: 3px 100%, 3px 100%;
+  background-position: var(--md-quote-base, 6px) 0, calc(var(--md-quote-base, 6px) + 1.1em) 0, calc(var(--md-quote-base, 6px) + 2.2em) 0, calc(var(--md-quote-base, 6px) + 3.3em) 0;
 }
+.cm-editor .cm-line.md-line-quote[data-depth="5"],
 .md-line-quote[data-depth="5"] {
-  padding-left: 5.5em !important;
+  padding-left: calc(var(--md-quote-base, 6px) + 5.5em) !important;
   background-image: var(--quote-line), var(--quote-line), var(--quote-line), var(--quote-line), var(--quote-line);
-  background-size: 3px 100%, 3px 100%, 3px 100%, 3px 100%, 3px 100%;
-  background-position: 0 0, 1.1em 0, 2.2em 0, 3.3em 0, 4.4em 0;
+  background-size: 3px 100%, 3px 100%;
+  background-position: var(--md-quote-base, 6px) 0, calc(var(--md-quote-base, 6px) + 1.1em) 0, calc(var(--md-quote-base, 6px) + 2.2em) 0, calc(var(--md-quote-base, 6px) + 3.3em) 0, calc(var(--md-quote-base, 6px) + 4.4em) 0;
 }
 
 /* 代码块：连续行拼接出背景（主题变量控制底色/边框/圆角）

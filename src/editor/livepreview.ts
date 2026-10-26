@@ -80,7 +80,7 @@ const listIndentLineQ = (listDepth: number, quoteDepth: number) => {
       attributes: {
         "data-depth": String(ld),
         "data-qdepth": String(quoteDepth),
-        style: `padding-left: calc(${quoteDepth * 1.1}em + ${2 * ld - 0.6}em) !important;`,
+        style: `padding-left: calc(var(--md-quote-base, 6px) + ${quoteDepth * 1.1}em + ${2 * ld - 0.6}em) !important;`,
       },
     });
     LIST_QUOTE_CACHE.set(key, d);
