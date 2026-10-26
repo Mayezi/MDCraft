@@ -245,6 +245,16 @@ mark{background:#fff3a3;color:#1f2328;padding:1px 4px;border-radius:3px}
 code{background:var(--code-bg);border-radius:4px;padding:2px 5px;font-size:.9em;font-family:ui-monospace,Consolas,monospace}
 pre{background:var(--code-bg);border-radius:8px;padding:14px 16px;overflow:auto;line-height:1.5;border:1px solid var(--border)}
 pre code{background:none;padding:0;border:0}
+ul{list-style-type:disc!important;padding-left:1.6em;margin:0 0 1em}
+ol{list-style-type:decimal!important;padding-left:1.6em;margin:0 0 1em}
+ul ul,ol ul{list-style-type:circle!important}
+ul ul ul,ol ul ul{list-style-type:square!important}
+ol ol,ul ol{list-style-type:lower-alpha!important}
+li+li{margin-top:.25em}
+ul.contains-task-list{list-style-type:none!important;padding-left:.3em!important}
+li.task-list-item{list-style-type:none!important;display:flex;align-items:baseline;gap:.45em}
+input[type="checkbox"]{appearance:none;-webkit-appearance:none;width:14px;height:14px;margin:0;vertical-align:-2px;flex-shrink:0;border:1.5px solid var(--fg-soft);border-radius:4px;background:var(--bg-page);position:relative;display:inline-block;transform:translateY(1.5px)}
+input[type="checkbox"]:checked{background-color:var(--accent);border-color:var(--accent);background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 16 16' fill='white' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M12.207 4.793a1 1 0 010 1.414l-5 5a1 1 0 01-1.414 0l-2-2a1 1 0 011.414-1.414L6.5 9.086l4.293-4.293a1 1 0 011.414 0z'/%3E%3C/svg%3E");background-size:100% 100%;background-position:center;background-repeat:no-repeat}
 blockquote{border-left:.3em solid var(--accent);margin:1em 0;padding:.2em 1em;color:var(--fg-soft);background:var(--code-bg);border-radius:0 6px 6px 0}
 table{border-collapse:collapse;margin:.8em 0 1.2em;width:auto;max-width:100%}
 th,td{border:1px solid var(--table-border);padding:6px 13px;line-height:1.6;font-size:.95em;text-align:left;word-break:break-word}
@@ -359,6 +369,19 @@ export function renderExportBodyHtml(mdText: string, docPath: string | null): st
   root.querySelectorAll("h1, h2, h3, h4, h5, h6").forEach((h) => {
     const level = Number(h.tagName.slice(1));
     h.setAttribute("data-heading-level", String(level));
+  });
+
+  // 4. 识别并标记任务列表项，支持精致复选框与消除默认圆点
+  root.querySelectorAll("li").forEach((li) => {
+    const cb = li.querySelector('input[type="checkbox"]');
+    if (cb) {
+      li.classList.add("task-list-item");
+      cb.classList.add("pdf-task-checkbox");
+      const parentUl = li.parentElement;
+      if (parentUl && parentUl.tagName === "UL") {
+        parentUl.classList.add("contains-task-list");
+      }
+    }
   });
 
   return root.innerHTML;
@@ -551,12 +574,70 @@ export function buildPdfArticleCss(options: { isDark: boolean } & PdfThemeColors
   margin-top: 0;
   margin-bottom: 1em;
 }
-.pdf-paper-root ul,
+.pdf-paper-root ul {
+  list-style-type: disc !important;
+  padding-left: 1.6em;
+}
 .pdf-paper-root ol {
-  padding-left: 1.65em;
+  list-style-type: decimal !important;
+  padding-left: 1.6em;
+}
+.pdf-paper-root ul ul,
+.pdf-paper-root ol ul {
+  list-style-type: circle !important;
+}
+.pdf-paper-root ul ul ul,
+.pdf-paper-root ol ul ul {
+  list-style-type: square !important;
+}
+.pdf-paper-root ol ol,
+.pdf-paper-root ul ol {
+  list-style-type: lower-alpha !important;
+}
+.pdf-paper-root li {
+  margin-top: 0.25em;
 }
 .pdf-paper-root li + li {
   margin-top: 0.25em;
+}
+.pdf-paper-root ul.contains-task-list {
+  list-style-type: none !important;
+  padding-left: 0.35em !important;
+}
+.pdf-paper-root li.task-list-item {
+  list-style-type: none !important;
+  display: flex;
+  align-items: baseline;
+  gap: 0.5em;
+}
+.pdf-paper-root input.pdf-task-checkbox,
+.pdf-paper-root .task-list-item input[type="checkbox"],
+.pdf-paper-root input[type="checkbox"] {
+  appearance: none !important;
+  -webkit-appearance: none !important;
+  width: 14.5px;
+  height: 14.5px;
+  margin: 0;
+  vertical-align: -2px;
+  flex-shrink: 0;
+  border: 1.5px solid var(--pdf-fg-soft) !important;
+  border-radius: 4px;
+  background-color: var(--pdf-bg);
+  cursor: default;
+  position: relative;
+  display: inline-block;
+  transform: translateY(2px);
+  box-sizing: border-box;
+}
+.pdf-paper-root input.pdf-task-checkbox:checked,
+.pdf-paper-root .task-list-item input[type="checkbox"]:checked,
+.pdf-paper-root input[type="checkbox"]:checked {
+  background-color: var(--pdf-accent) !important;
+  border-color: var(--pdf-accent) !important;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 16 16' fill='white' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M12.207 4.793a1 1 0 010 1.414l-5 5a1 1 0 01-1.414 0l-2-2a1 1 0 011.414-1.414L6.5 9.086l4.293-4.293a1 1 0 011.414 0z'/%3E%3C/svg%3E") !important;
+  background-size: 100% 100% !important;
+  background-position: center !important;
+  background-repeat: no-repeat !important;
 }
 .pdf-paper-root a {
   color: var(--pdf-accent);
