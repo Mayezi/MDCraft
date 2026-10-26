@@ -1,11 +1,12 @@
 // 文档动作：保存 / 导出（连通 store、editor 状态、后端）
 
+import { useEffect, useState } from "react";
 import type { EditorState } from "@codemirror/state";
 import { editorStates, useStore } from "../store";
 import { getView } from "../editor/viewref";
 import * as backend from "./backend";
 import { ensureWorkspaceFor } from "./workspace";
-import { notifyError } from "./notify";
+import { notify, notifyError } from "./notify";
 import { fileNameOf, isTextEditable } from "./fileTypes";
 import { showUnsupportedFile } from "./unsupportedFile";
 
@@ -19,13 +20,11 @@ export function currentDocState(): EditorState | null {
   return editorStates.get(activeDocId) ?? null;
 }
 
-/** 保存指定文档；saveAs=true 或无路径时弹出保存位置。
- *  活动文档取实时 EditorView，非活动文档取状态池里的最近状态。 */
-export async function saveDocById(docId: string, saveAs = false): Promise<boolean> {
+/** 获取指定 docId 的最新 Markdown 文本（若为当前活动文档则同步实时 EditorView） */
+export function getDocContentById(docId: string): string {
   const store = useStore.getState();
   const doc = store.docs.find((d) => d.id === docId);
-  if (!doc) return false;
-
+  if (!doc) return "";
   let state = editorStates.get(docId);
   if (docId === store.activeDocId) {
     const view = getView();
@@ -34,8 +33,17 @@ export async function saveDocById(docId: string, saveAs = false): Promise<boolea
       state = view.state;
     }
   }
-  const content = state ? state.doc.toString() : doc.initialContent;
+  return state ? state.doc.toString() : doc.initialContent;
+}
 
+/** 保存指定文档；saveAs=true 或无路径时弹出保存位置。
+ *  活动文档取实时 EditorView，非活动文档取状态池里的最近状态。 */
+export async function saveDocById(docId: string, saveAs = false): Promise<boolean> {
+  const store = useStore.getState();
+  const doc = store.docs.find((d) => d.id === docId);
+  if (!doc) return false;
+
+  const content = getDocContentById(docId);
   let path = doc.path;
 
   // 另存为，或当前还是没有磁盘路径的新草稿（Ctrl+N 后直接 Ctrl+S）：
@@ -85,7 +93,24 @@ export async function saveAllDirty(): Promise<boolean> {
   return true;
 }
 
-// ---------- 导出（针对文件：入口在文件树右键菜单）----------
+// ---------- 导出成功通知 ----------
+
+/** 导出成功通知：桌面端附带「打开文件 / 打开所在目录」操作 */
+export function notifyExportedFile(path: string | null, label: string) {
+  if (!path) return;
+  notify(`已导出 ${label}`, "success", [
+    {
+      label: "打开文件",
+      onClick: () => void backend.openPath(path).catch((e: unknown) => notifyError(`打开失败：${e}`)),
+    },
+    {
+      label: "打开所在目录",
+      onClick: () => void backend.showInFolder(path).catch((e: unknown) => notifyError(`打开失败：${e}`)),
+    },
+  ]);
+}
+
+// ---------- HTML 导出 ----------
 
 /**
  * HTML 导出公共实现：
@@ -110,25 +135,120 @@ async function exportHtml(
     await backend.writeFileText(out, html);
     return out;
   }
+  if (backend.isTauri) {
+    const out = await backend.pickExportPath(outName);
+    if (!out) return null;
+    await backend.writeFileText(out, html);
+    return out;
+  }
   backend.downloadBlob(outName, new Blob([html], { type: "text/html;charset=utf-8" }));
   return null;
+}
+
+/** 读取指定磁盘路径的最新 Markdown 内容（若该文件已在标签页打开，优先取编辑器实时缓冲） */
+async function readLatestMarkdownByPath(path: string): Promise<string> {
+  const openDoc = useStore.getState().docs.find((d) => d.path === path);
+  if (openDoc) {
+    return getDocContentById(openDoc.id);
+  }
+  return backend.readFileText(path);
 }
 
 /** 按磁盘路径导出该文件为同名 .html（文件树右键）；返回输出路径（取消/浏览器返回 null） */
 export async function exportDocByPath(path: string): Promise<string | null> {
   const name = path.split(/[\\/]/).pop() ?? "untitled.md";
-  const md = await backend.readFileText(path);
+  const md = await readLatestMarkdownByPath(path);
   return exportHtml(md, name, path);
 }
 
-/** 导出草稿（浏览器模式：内容取编辑器状态，下载 .html）；返回输出路径（浏览器返回 null） */
+/** 导出草稿或已打开标签页文档为 .html；返回输出路径（浏览器返回 null） */
 export async function exportDraftDoc(docId: string): Promise<string | null> {
   const doc = useStore.getState().docs.find((d) => d.id === docId);
   if (!doc) return null;
-  const state = editorStates.get(docId);
-  const md = state ? state.doc.toString() : doc.initialContent;
+  const md = getDocContentById(docId);
   return exportHtml(md, doc.name, doc.path);
 }
+
+/** 导出当前活动文档为 HTML */
+export async function exportActiveDocHtml(): Promise<void> {
+  const { activeDocId, docs } = useStore.getState();
+  const doc = docs.find((d) => d.id === activeDocId);
+  if (!doc) return;
+  try {
+    const out = await exportDraftDoc(doc.id);
+    notifyExportedFile(out, "HTML 文件");
+  } catch (e) {
+    notifyError(`导出失败：${e}`);
+  }
+}
+
+// ---------- PDF 导出预览与设置弹窗状态 ----------
+
+export interface PdfExportTarget {
+  /** 文件名（如 README.md） */
+  name: string;
+  /** 磁盘路径（草稿为 null 或 mdcraft:doc:xxx） */
+  path: string | null;
+  /** Markdown 原文 */
+  md: string;
+}
+
+let currentPdfTarget: PdfExportTarget | null = null;
+const pdfTargetListeners = new Set<(target: PdfExportTarget | null) => void>();
+
+function emitPdfTarget(target: PdfExportTarget | null) {
+  currentPdfTarget = target;
+  pdfTargetListeners.forEach((fn) => fn(target));
+}
+
+export function openPdfExportDialog(target: PdfExportTarget): void {
+  emitPdfTarget(target);
+}
+
+export function closePdfExportDialog(): void {
+  if (!currentPdfTarget) return;
+  emitPdfTarget(null);
+}
+
+export function usePdfExportTarget(): PdfExportTarget | null {
+  const [target, setTarget] = useState<PdfExportTarget | null>(currentPdfTarget);
+  useEffect(() => {
+    const fn = (next: PdfExportTarget | null) => setTarget(next);
+    pdfTargetListeners.add(fn);
+    return () => {
+      pdfTargetListeners.delete(fn);
+    };
+  }, []);
+  return target;
+}
+
+/** 按磁盘路径打开 PDF 导出预览与设置弹窗（文件树右键「导出 ▸ PDF…」） */
+export async function openPdfExportByPath(path: string): Promise<void> {
+  try {
+    const name = path.split(/[\\/]/).pop() ?? "untitled.md";
+    const md = await readLatestMarkdownByPath(path);
+    openPdfExportDialog({ name, path, md });
+  } catch (e) {
+    notifyError(`读取文档失败：${e}`);
+  }
+}
+
+/** 按文档 ID 打开 PDF 导出预览与设置弹窗（草稿右键 / 菜单栏导出） */
+export function openPdfExportByDocId(docId: string): void {
+  const doc = useStore.getState().docs.find((d) => d.id === docId);
+  if (!doc) return;
+  const md = getDocContentById(docId);
+  openPdfExportDialog({ name: doc.name, path: doc.path, md });
+}
+
+/** 打开当前活动文档的 PDF 导出预览与设置弹窗 */
+export function openPdfExportActiveDoc(): void {
+  const { activeDocId, docs } = useStore.getState();
+  if (!docs.length || !activeDocId) return;
+  openPdfExportByDocId(activeDocId);
+}
+
+// ---------- 打开文件 ----------
 
 export async function openDocByPath(path: string, name?: string) {
   const content = await backend.readFileText(path);

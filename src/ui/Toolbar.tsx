@@ -6,7 +6,12 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Check, ChevronRight, FileText, HelpCircle, Moon, Palette, Settings as SettingsIcon, Sun } from "lucide-react";
 import { useStore } from "../store";
 import * as backend from "../lib/backend";
-import { openEditableFile, saveActiveDoc } from "../lib/docActions";
+import {
+  exportActiveDocHtml,
+  openEditableFile,
+  openPdfExportActiveDoc,
+  saveActiveDoc,
+} from "../lib/docActions";
 import { openFolder } from "../lib/workspace";
 import { getView } from "../editor/viewref";
 import { THEME_MODES, THEME_PALETTES } from "../lib/types";
@@ -132,16 +137,27 @@ export default function Toolbar() {
     {
       label: "文件",
       icon: <FileText size={13} />,
-      build: () => [
-        { label: "新建文档", hint: "Ctrl+N", run: () => useStore.getState().newDoc() },
-        { label: "打开文件", hint: "Ctrl+O", run: () => void onOpenFile() },
-        { label: "打开文件夹", hint: "Ctrl+Shift+O", run: () => void onOpenFolderBtn() },
-        { sep: true },
-        { label: "保存", hint: "Ctrl+S", run: () => void saveActiveDoc() },
-        { label: "另存为", hint: "Ctrl+Shift+S", run: () => void saveActiveDoc(true) },
-        { sep: true },
-        { label: "关闭标签", run: () => useStore.getState().closeDoc(useStore.getState().activeDocId) },
-      ],
+      build: () => {
+        const hasDoc = useStore.getState().docs.length > 0;
+        return [
+          { label: "新建文档", hint: "Ctrl+N", run: () => useStore.getState().newDoc() },
+          { label: "打开文件", hint: "Ctrl+O", run: () => void onOpenFile() },
+          { label: "打开文件夹", hint: "Ctrl+Shift+O", run: () => void onOpenFolderBtn() },
+          { sep: true },
+          { label: "保存", hint: "Ctrl+S", disabled: !hasDoc, run: () => void saveActiveDoc() },
+          { label: "另存为", hint: "Ctrl+Shift+S", disabled: !hasDoc, run: () => void saveActiveDoc(true) },
+          {
+            label: "导出",
+            disabled: !hasDoc,
+            items: [
+              { label: "HTML…", disabled: !hasDoc, run: () => void exportActiveDocHtml() },
+              { label: "PDF…", hint: "Ctrl+P", disabled: !hasDoc, run: () => openPdfExportActiveDoc() },
+            ],
+          },
+          { sep: true },
+          { label: "关闭标签", disabled: !hasDoc, run: () => useStore.getState().closeDoc(useStore.getState().activeDocId) },
+        ];
+      },
     },
     {
       label: "帮助",
@@ -156,6 +172,7 @@ export default function Toolbar() {
             { label: "打开文件夹", hint: "Ctrl+Shift+O" },
             { label: "保存", hint: "Ctrl+S" },
             { label: "另存为", hint: "Ctrl+Shift+S" },
+            { label: "导出 PDF", hint: "Ctrl+P" },
             { sep: true },
             { label: "撤销", hint: "Ctrl+Z" },
             { label: "重做", hint: "Ctrl+Y" },

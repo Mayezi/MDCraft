@@ -11,16 +11,16 @@ import UpdateNotifier from "./ui/UpdateNotifier";
 import UpdateDialog from "./ui/UpdateDialog";
 import NotifyHost from "./ui/NotifyHost";
 import UnsupportedFileDialog from "./ui/UnsupportedFileDialog";
+import PdfExportDialog from "./ui/PdfExportDialog";
 import { useStore } from "./store";
 import * as backend from "./lib/backend";
 import { importDroppedPaths, importDroppedFiles } from "./lib/drop";
-import { openEditableFile } from "./lib/docActions";
+import { openEditableFile, openPdfExportActiveDoc, saveActiveDoc, saveAllDirty } from "./lib/docActions";
 import { ensureWorkspaceFor, restoreFolder } from "./lib/workspace";
 import { checkForUpdatesOnStartup, closeUpdateDialog, useUpdateDialogOpen } from "./lib/updater";
 import { dismissBootSplash } from "./lib/boot-splash";
 import { applyThemeAttributes } from "./lib/theme";
 import { getView } from "./editor/viewref";
-import { saveActiveDoc, saveAllDirty } from "./lib/docActions";
 import type { DocFile } from "./lib/types";
 
 // 编辑器依赖 CodeMirror（大块头），拆成异步 chunk：首屏先出工具栏/侧栏，
@@ -240,6 +240,12 @@ export default function App() {
       if (!e.shiftKey && key === "n") {
         e.preventDefault();
         useStore.getState().newDoc();
+        return;
+      }
+      if (!e.shiftKey && key === "p") {
+        if (!useStore.getState().docs.length) return;
+        e.preventDefault();
+        openPdfExportActiveDoc();
       }
     };
     window.addEventListener("keydown", onKey);
@@ -368,6 +374,7 @@ export default function App() {
       {dragging && <DropOverlay />}
       <NotifyHost />
       <UnsupportedFileDialog />
+      <PdfExportDialog />
       <UpdateNotifier />
       <UpdateDialog open={updateDialogOpen} onClose={closeUpdateDialog} />
       {closeDocs.length > 0 && (

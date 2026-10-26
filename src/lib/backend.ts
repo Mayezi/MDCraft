@@ -151,6 +151,23 @@ export async function pickExportPath(defaultPath: string): Promise<string | null
   return typeof res === "string" ? res : null;
 }
 
+/** 导出 PDF 文件保存对话框：可同时自定义文件名与所在目录（仅桌面模式），取消返回 null */
+export async function pickExportPdfPath(defaultPath: string): Promise<string | null> {
+  if (!isTauri) return null;
+  const { save } = await import("@tauri-apps/plugin-dialog");
+  const res = await save({
+    defaultPath,
+    filters: [{ name: "PDF 文档", extensions: ["pdf"] }],
+  });
+  return typeof res === "string" ? res : null;
+}
+
+/** 将自包含 HTML 导出为本地矢量 PDF 文件（仅桌面模式） */
+export async function exportPdfFile(html: string, path: string): Promise<void> {
+  if (!isTauri) return;
+  await invoke("export_pdf", { html, path });
+}
+
 /** 保存一个 JSON 配置文件（桌面走保存对话框 + 写盘，浏览器下载） */
 export async function saveJsonFile(defaultName: string, content: string): Promise<boolean> {
   if (isTauri) {

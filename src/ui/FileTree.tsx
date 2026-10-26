@@ -7,7 +7,13 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { ChevronRight, FilePlus2, FolderPlus, FileText, Folder, Pencil, Trash2, RefreshCw, EllipsisVertical, Check, FolderOpen, Download, FolderSearch, ArrowDownAZ, ArrowUpAZ, Files, ClockArrowDown, ClockArrowUp, CalendarArrowDown, CalendarArrowUp, FolderUp, List, Plus, FileImage, FileCode, FileJson, FileVideo, FileAudio, FileArchive, FileType, type LucideIcon } from "lucide-react";
 import { useStore } from "../store";
 import * as backend from "../lib/backend";
-import { openDocByPath, exportDocByPath, exportDraftDoc } from "../lib/docActions";
+import {
+  openDocByPath,
+  exportDocByPath,
+  exportDraftDoc,
+  openPdfExportByPath,
+  openPdfExportByDocId,
+} from "../lib/docActions";
 import { isTextEditable, MARKDOWN_EXT } from "../lib/fileTypes";
 import { showUnsupportedFile } from "../lib/unsupportedFile";
 import { openFolder } from "../lib/workspace";
@@ -182,7 +188,7 @@ const MENU_ITEM =
 /** 导出格式登记表（右键「导出 ▸」二级菜单）：新格式在此追加条目；实现后去掉 disabled/hint 并在 onPick 分发 */
 const EXPORT_FORMATS: { id: string; label: string; disabled?: boolean; hint?: string }[] = [
   { id: "html", label: "HTML…" },
-  { id: "pdf", label: "PDF…", disabled: true, hint: "敬请期待" }, // 预留位：PDF 导出未实现
+  { id: "pdf", label: "PDF…" },
 ];
 
 interface CtxMenu {
@@ -307,6 +313,7 @@ function ContextMenu({
   onRename,
   onDelete,
   onExportHtml,
+  onExportPdf,
   onReveal,
 }: {
   menu: CtxMenu;
@@ -316,6 +323,7 @@ function ContextMenu({
   onRename: (m: CtxMenu) => void;
   onDelete: (m: CtxMenu) => void;
   onExportHtml: (m: CtxMenu) => void;
+  onExportPdf: (m: CtxMenu) => void;
   onReveal: (m: CtxMenu) => void;
 }) {
   const ref = useRef<HTMLDivElement>(null);
@@ -327,7 +335,10 @@ function ContextMenu({
     return () => window.removeEventListener("mousedown", close);
   }, [onClose]);
 
-  const isMdFile = !!menu.node && !menu.node.isDir && menu.node.name.toLowerCase().endsWith(".md");
+  const isMdFile =
+    !!menu.node &&
+    !menu.node.isDir &&
+    /\.(md|markdown|mdx)$/i.test(menu.node.name);
   return (
     <div
       ref={ref}
@@ -354,6 +365,7 @@ function ContextMenu({
             <ExportSubMenu
               onPick={(id) => {
                 if (id === "html") onExportHtml(menu);
+                else if (id === "pdf") onExportPdf(menu);
               }}
             />
           )}
@@ -854,6 +866,8 @@ export default function FileTree({ onRecentHeightChange }: { onRecentHeightChang
               onPick={(id) => {
                 if (id === "html") {
                   void exportDraftDoc(draftMenu.docId).then((p) => notifyExportedFile(p, "HTML 文件"));
+                } else if (id === "pdf") {
+                  openPdfExportByDocId(draftMenu.docId);
                 }
                 setDraftMenu(null);
               }}
@@ -888,12 +902,33 @@ export default function FileTree({ onRecentHeightChange }: { onRecentHeightChang
                     : "text-[var(--fg)] hover:bg-[var(--bg-hover)]"
                 }`}
                 onClick={() => useStore.getState().setActiveDoc(d.id)}
+                onContextMenu={(e) => {
+                  e.preventDefault();
+                  setDraftMenu({ x: e.clientX, y: e.clientY, docId: d.id });
+                }}
                 title={d.path ?? undefined}
               >
                 <FileText size={16} className="shrink-0 text-[var(--fg-faint)]" />
                 <span className="truncate">{d.name}</span>
               </button>
             ))}
+          </div>
+        )}
+        {draftMenu && (
+          <div
+            className="ctx-menu ui-pop fixed z-50 min-w-[170px] rounded-md border border-[var(--border)] bg-[var(--bg-soft)] py-1 shadow-lg"
+            style={{ left: Math.min(draftMenu.x, window.innerWidth - 190), top: Math.min(draftMenu.y, window.innerHeight - 140) }}
+          >
+            <ExportSubMenu
+              onPick={(id) => {
+                if (id === "html") {
+                  void exportDraftDoc(draftMenu.docId).then((p) => notifyExportedFile(p, "HTML 文件"));
+                } else if (id === "pdf") {
+                  openPdfExportByDocId(draftMenu.docId);
+                }
+                setDraftMenu(null);
+              }}
+            />
           </div>
         )}
         <RecentFiles onHeightChange={onRecentHeightChange} />
@@ -1050,6 +1085,12 @@ export default function FileTree({ onRecentHeightChange }: { onRecentHeightChang
                 notifyError(`导出失败：${e}`);
               }
             })();
+          }}
+          onExportPdf={(m) => {
+            setMenu(null);
+            const n = m.node;
+            if (!n || n.isDir) return;
+            void openPdfExportByPath(n.path);
           }}
           onReveal={(m) => {
             setMenu(null);

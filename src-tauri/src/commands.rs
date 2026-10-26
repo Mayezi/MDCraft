@@ -112,6 +112,158 @@ pub fn save_binary_file(path: String, data: Vec<u8>) -> Result<(), String> {
     fsutil::atomic_write_bytes(Path::new(&path), &data).map_err(|e| format!("保存失败: {e}"))
 }
 
+/// 定位系统可用的 Chromium 内核浏览器（Windows 预装 Edge，macOS/Linux 常见 Chrome/Edge/Chromium）
+fn find_pdf_browser() -> Option<PathBuf> {
+    for env_key in ["MDCRAFT_BROWSER_PATH", "EDGE_PATH", "CHROME_PATH"] {
+        if let Ok(val) = std::env::var(env_key) {
+            let p = PathBuf::from(val);
+            if p.is_file() {
+                return Some(p);
+            }
+        }
+    }
+
+    #[cfg(target_os = "windows")]
+    {
+        let mut candidates: Vec<PathBuf> = vec![
+            PathBuf::from(r"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe"),
+            PathBuf::from(r"C:\Program Files\Microsoft\Edge\Application\msedge.exe"),
+            PathBuf::from(r"C:\Program Files\Google\Chrome\Application\chrome.exe"),
+            PathBuf::from(r"C:\Program Files (x86)\Google\Chrome\Application\chrome.exe"),
+            PathBuf::from(r"C:\Program Files\BraveSoftware\Brave-Browser\Application\brave.exe"),
+        ];
+        if let Ok(local) = std::env::var("LOCALAPPDATA") {
+            let base = PathBuf::from(local);
+            candidates.push(base.join(r"Microsoft\Edge\Application\msedge.exe"));
+            candidates.push(base.join(r"Google\Chrome\Application\chrome.exe"));
+            candidates.push(base.join(r"BraveSoftware\Brave-Browser\Application\brave.exe"));
+        }
+        for c in candidates {
+            if c.is_file() {
+                return Some(c);
+            }
+        }
+    }
+
+    #[cfg(target_os = "macos")]
+    {
+        let candidates = [
+            "/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge",
+            "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+            "/Applications/Brave Browser.app/Contents/MacOS/Brave Browser",
+            "/Applications/Chromium.app/Contents/MacOS/Chromium",
+        ];
+        for c in candidates {
+            let p = PathBuf::from(c);
+            if p.is_file() {
+                return Some(p);
+            }
+        }
+    }
+
+    #[cfg(not(any(target_os = "windows", target_os = "macos")))]
+    {
+        let candidates = [
+            "/usr/bin/microsoft-edge",
+            "/usr/bin/microsoft-edge-stable",
+            "/usr/bin/google-chrome",
+            "/usr/bin/google-chrome-stable",
+            "/usr/bin/chromium",
+            "/usr/bin/chromium-browser",
+            "/snap/bin/chromium",
+            "/usr/bin/brave-browser",
+        ];
+        for c in candidates {
+            let p = PathBuf::from(c);
+            if p.is_file() {
+                return Some(p);
+            }
+        }
+    }
+
+    None
+}
+
+/// 将渲染好的完整 HTML 静默打印导出为矢量 PDF 文件
+#[tauri::command]
+pub async fn export_pdf(html: String, path: String) -> Result<(), String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let browser = find_pdf_browser().ok_or_else(|| {
+            "未检测到可用的 Chromium / Edge 浏览器内核，请使用「系统打印」另存为 PDF".to_string()
+        })?;
+
+        let out_path = PathBuf::from(&path);
+        if let Some(parent) = out_path.parent() {
+            if !parent.as_os_str().is_empty() {
+                std::fs::create_dir_all(parent)
+                    .map_err(|e| format!("无法创建目标目录: {e}"))?;
+            }
+        }
+
+        let stamp = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_nanos())
+            .unwrap_or(0);
+        let pid = std::process::id();
+        let tmp_root = std::env::temp_dir();
+        let tmp_html = tmp_root.join(format!("mdcraft-export-{pid}-{stamp}.html"));
+        let tmp_profile = tmp_root.join(format!("mdcraft-pdf-profile-{pid}-{stamp}"));
+
+        fsutil::atomic_write(&tmp_html, &html)
+            .map_err(|e| format!("无法写入临时导出文件: {e}"))?;
+        let _ = std::fs::create_dir_all(&tmp_profile);
+
+        // 先删除已存在的同名旧 PDF，确保能准确判定本次是否成功产出
+        if out_path.exists() {
+            let _ = std::fs::remove_file(&out_path);
+        }
+
+        let run_headless = |headless_arg: &str| -> Result<(), String> {
+            let mut cmd = std::process::Command::new(&browser);
+            cmd.arg(headless_arg)
+                .arg("--disable-gpu")
+                .arg("--no-sandbox")
+                .arg("--disable-extensions")
+                .arg("--no-first-run")
+                .arg("--no-default-browser-check")
+                .arg("--no-pdf-header-footer")
+                .arg("--print-to-pdf-no-header")
+                .arg("--allow-file-access-from-files")
+                .arg("--run-all-compositor-stages-before-draw")
+                .arg("--virtual-time-budget=2000")
+                .arg(format!("--user-data-dir={}", tmp_profile.display()))
+                .arg(format!("--print-to-pdf={}", out_path.display()))
+                .arg(&tmp_html);
+
+            #[cfg(target_os = "windows")]
+            {
+                use std::os::windows::process::CommandExt;
+                const CREATE_NO_WINDOW: u32 = 0x08000000;
+                cmd.creation_flags(CREATE_NO_WINDOW);
+            }
+
+            let status = cmd
+                .status()
+                .map_err(|e| format!("启动 PDF 渲染引擎失败: {e}"))?;
+
+            if status.success() && out_path.is_file() {
+                Ok(())
+            } else {
+                Err(format!("PDF 渲染未完成 (状态码: {status})"))
+            }
+        };
+
+        let res = run_headless("--headless=new").or_else(|_| run_headless("--headless"));
+
+        let _ = std::fs::remove_file(&tmp_html);
+        let _ = std::fs::remove_dir_all(&tmp_profile);
+
+        res
+    })
+    .await
+    .map_err(|e| format!("PDF 导出任务异常: {e}"))?
+}
+
 #[tauri::command]
 pub async fn list_dir(app: AppHandle, root: String) -> Result<Vec<workspace::FileNode>, String> {
     allow_asset_dir(&app, Path::new(&root));
