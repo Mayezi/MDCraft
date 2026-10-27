@@ -109,7 +109,7 @@ function buildBlockDecorations(state: EditorState): DecorationSet {
           const contentFrom = Math.min(firstLine.to + 1, lastLine.from);
           const contentTo = lastLine.from;
           const code = state.sliceDoc(contentFrom, contentTo).replace(/\n$/, "");
-          const lang = firstLine.text.replace(/^```\s*/, "").trim();
+          const lang = firstLine.text.replace(/^\s*```\s*/, "").trim();
           if (isDiagramLanguage(lang)) {
             decos.push(
               Decoration.replace({

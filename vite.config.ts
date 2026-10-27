@@ -4,7 +4,7 @@ import path from "node:path";
 import pkg from "./package.json" with { type: "json" };
 
 // Tauri 集成：固定端口 + 环境感知（TAURI_ENV_PLATFORM 时启用 Tauri 特定配置）
-// 端口策略：本地开发环境恢复默认 5173（与 tauri.conf.json 一致）；云端构建环境感知 DEFAULT_APP_PORT (3000)
+// 端口策略：本地开发环境恢复默认 5173（与 package.json 的版本号来源一致）；云端构建环境感知 DEFAULT_APP_PORT (3000)
 const isCloudEnv = Boolean(process.env.DEFAULT_APP_PORT);
 const port = isCloudEnv ? Number(process.env.DEFAULT_APP_PORT) : 5173;
 const host = process.env.TAURI_DEV_HOST;

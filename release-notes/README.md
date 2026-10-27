@@ -14,7 +14,7 @@
 ## 发版流程
 
 ```bash
-# 1. 三处版本号同步：package.json / src-tauri/tauri.conf.json / src-tauri/Cargo.toml
+# 1. 两处版本号同步：package.json / src-tauri/Cargo.toml（tauri.conf.json 由 package.json 自动读取）
 # 2. 新建 release-notes/v0.17.1.md 并写好说明
 # 3. 提交推送
 git add -A && git commit -m "feat: …；版本 0.17.1" && git push origin main

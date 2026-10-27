@@ -13,18 +13,18 @@ MDCraft — 所见即所得 Markdown 编辑器（Tauri 2 + Rust 核心 + React 1
 
 ## 版本号规则
 
-版本号需三处同步：`package.json`、`src-tauri/tauri.conf.json`、`src-tauri/Cargo.toml`。
+版本号需两处同步：`package.json` 与 `src-tauri/Cargo.toml`。`src-tauri/tauri.conf.json` 的 `version` 字段已省略，由 Tauri 2 自动从 `package.json` 读取。
 
-- **每次小改动完成后立即自增**（不等提交 git 时才加），并三处同步 + 用 `cargo check` 更新根目录 `Cargo.lock`。
+- **每次小改动完成后立即自增**（不等提交 git 时才加），并两处同步 + 用 `cargo check` 更新根目录 `Cargo.lock`。
 - **修复已有功能的 bug / 对已有功能的小优化** → 加版本号**最后一位**（patch，如 `0.3.1` → `0.3.2`）。
 - **新开功能**（新增能力/交互/界面）→ 加版本号**中间一位**（minor，patch 归零，如 `0.3.2` → `0.4.0`）。
-- 每次提交前先按此规则校准版本号并三处同步，构建通过后一起 `git commit`。
+- 每次提交前先按此规则校准版本号并两处同步，构建通过后一起 `git commit`。
 - **只提交，不推送**：日常改动 `git commit` 完就停，**不要**自己 `git push`（推送与打 tag 由维护者决定）。
 - **日常提交不写 `release-notes/`**：不是每个版本号都会发版，发布说明只在**发版时**（打 tag 前）写 `release-notes/v<版本>.md`；日常改动只需在提交信息里说清改了什么。
 
 ## 发布流程（发版只做这些，别多做）
 
-1. 三处同步版本号（`package.json` / `src-tauri/tauri.conf.json` / `src-tauri/Cargo.toml`），`cargo check` 更新 `Cargo.lock`。
+1. 两处同步版本号（`package.json` / `src-tauri/Cargo.toml`），`cargo check` 更新 `Cargo.lock`。
 2. 写 `release-notes/v<版本>.md`（Release 正文 + 应用内更新提示的来源）—— **写完先给用户确认，用户认可后再提交**（发布说明会直接面向用户，不要擅自定稿）。
 3. `git add -A && git commit`（推送由维护者执行）。
 4. 维护者推送后打 tag：`git tag -a v<版本> -m "MDCraft v<版本>" && git push origin v<版本>` → 触发 `.github/workflows/release.yml`。

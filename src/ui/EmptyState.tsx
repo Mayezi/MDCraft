@@ -27,7 +27,7 @@ export default function EmptyState() {
       <div className="relative z-10 w-full max-w-4xl">
         {/* 欢迎标题区 */}
         <div className="mb-8 text-center">
-          {/* 品牌徽章：版本号 + 产品定位，样式参考设计稿（版本号随三处同步的 package.json 手动更新） */}
+          {/* 品牌徽章：版本号 + 产品定位，样式参考设计稿（版本号随 package.json 手动更新） */}
           <a
             href="https://github.com/Mayezi/MDCraft"
             target="_blank"

@@ -1,7 +1,7 @@
 name: Release
 
 # 触发条件：
-# 1. 打 tag（须与 tauri.conf.json 的 version 一致）：
+# 1. 打 tag（须与 package.json 的 version 一致）：
 #    更新说明写在 release-notes/v<版本>.md（缺失时回退到 tag 注释）
 #    git tag -a v0.17.1 -m "MDCraft v0.17.1" && git push origin v0.17.1
 # 2. 或在 GitHub Actions 页面手动点击 "Run workflow" 运行
@@ -68,12 +68,12 @@ jobs:
         id: get_version
         shell: bash
         run: |
-          APP_VERSION=$(node -p "require('./src-tauri/tauri.conf.json').version")
+          APP_VERSION=$(node -p "require('./package.json').version")
           echo "version=${APP_VERSION}" >> $GITHUB_OUTPUT
           if [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
             TAG_VERSION="${GITHUB_REF_NAME#v}"
             if [ "$TAG_VERSION" != "$APP_VERSION" ]; then
-              echo "::error::tag ${GITHUB_REF_NAME} 与 tauri.conf.json 版本 ${APP_VERSION} 不一致，用户将收不到更新"
+              echo "::error::tag ${GITHUB_REF_NAME} 与 package.json 版本 ${APP_VERSION} 不一致，用户将收不到更新"
               exit 1
             fi
           fi
