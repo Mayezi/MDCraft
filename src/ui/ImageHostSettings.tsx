@@ -13,6 +13,7 @@ import {
   RefreshCw,
 } from "lucide-react";
 import { useStore } from "../store";
+import { openUrl } from "../lib/backend";
 import { testImageHost } from "../lib/imageHost";
 import type { ImageHostConfig, ImageHostType } from "../lib/types";
 
@@ -533,15 +534,16 @@ export function ImageHostSettingsPanel() {
                   <label className="text-[11.5px] font-medium text-[var(--fg-soft)]">
                     私人令牌 (Personal Access Token) <span className="text-[var(--danger)]">*</span>
                   </label>
-                  <a
-                    href="https://gitee.com/profile/personal_access_tokens"
-                    target="_blank"
-                    rel="noreferrer"
-                    className="inline-flex items-center gap-1 text-[11px] text-[var(--accent)] hover:underline"
+                  <button
+                    type="button"
+                    onClick={() =>
+                      void openUrl("https://gitee.com/profile/personal_access_tokens")
+                    }
+                    className={`inline-flex cursor-pointer items-center gap-1 text-[11px] text-[var(--accent)] hover:underline ${FOCUS_RING}`}
                   >
                     前往 Gitee 生成私人令牌 (需勾选 projects 权限)
                     <ExternalLink size={10} />
-                  </a>
+                  </button>
                 </div>
                 <div className="relative">
                   <input
