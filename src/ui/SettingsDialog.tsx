@@ -9,6 +9,7 @@ import {
   ExternalLink,
   FileText,
   FolderOpen,
+  Image as ImageIcon,
   Info,
   Palette,
   RefreshCw,
@@ -34,6 +35,7 @@ import {
 import { MarkdownChangelog } from "./Changelog";
 import GithubIcon from "./GithubIcon";
 import { ThemeModeSwitch, ThemePaletteSelect } from "./ThemeControls";
+import { ImageHostSettingsPanel } from "./ImageHostSettings";
 
 /** 主题默认字号/行高（唯一一套排版，这里镜像一份用于「跟随主题」时的显示值） */
 const BASE_METRICS = { fs: 16, lh: 1.75 };
@@ -49,6 +51,7 @@ const WIDTH_PRESETS = [
 const CATEGORIES = [
   { id: "appearance", label: "外观", icon: Palette },
   { id: "files", label: "文件与启动", icon: FolderOpen },
+  { id: "imageHost", label: "图片与图床", icon: ImageIcon },
   { id: "config", label: "配置", icon: Settings },
   { id: "update", label: "更新", icon: RefreshCw },
   { id: "about", label: "关于", icon: Info },
@@ -541,6 +544,59 @@ export default function SettingsDialog({
         ),
       },
     ],
+    imageHost: [
+      {
+        id: "image-storage-target",
+        title: "图片存储位置",
+        description: "选择本地 assets 目录或云端图床（阿里云 OSS / 腾讯云 COS / 七牛云 / Gitee 码云 / 自定义）",
+        keywords: [
+          "image",
+          "picture",
+          "tuchuang",
+          "图床",
+          "图片",
+          "存储",
+          "aliyun",
+          "oss",
+          "阿里云",
+          "tencent",
+          "cos",
+          "腾讯云",
+          "qiniu",
+          "七牛云",
+          "gitee",
+          "码云",
+          "custom",
+          "自定义",
+          "cdn",
+          "assets",
+        ],
+        control: null,
+      },
+      {
+        id: "image-host-type",
+        title: "图床服务提供商",
+        description: "配置阿里云 OSS、腾讯云 COS、七牛云 Kodo、Gitee 码云或自定义接口",
+        keywords: [
+          "host",
+          "provider",
+          "服务商",
+          "阿里云",
+          "腾讯云",
+          "七牛云",
+          "码云",
+          "自定义",
+          "oss",
+          "cos",
+          "qiniu",
+          "gitee",
+          "custom",
+          "token",
+          "api",
+        ],
+        control: null,
+      },
+    ],
     config: [
       {
         id: "config-file",
@@ -921,6 +977,8 @@ export default function SettingsDialog({
                 </div>
               ) : category === "about" ? (
                 <AboutPanel />
+              ) : category === "imageHost" ? (
+                <ImageHostSettingsPanel />
               ) : (
                 <div>
                   {!grouped && (

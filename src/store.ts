@@ -128,6 +128,27 @@ const savedPreferences = (() => {
     out.restoreFolder = bool(obj.restoreFolder, DEFAULT_PREFERENCES.restoreFolder);
     out.showAllFiles = bool(obj.showAllFiles, DEFAULT_PREFERENCES.showAllFiles);
     out.autoCheckUpdate = bool(obj.autoCheckUpdate, DEFAULT_PREFERENCES.autoCheckUpdate);
+    if (obj.imageHost && typeof obj.imageHost === "object" && !Array.isArray(obj.imageHost)) {
+      const rawHost = obj.imageHost as Record<string, any>;
+      const validTypes = ["aliyun", "tencent", "qiniu", "gitee", "custom"];
+      const hostType = validTypes.includes(rawHost.type)
+        ? rawHost.type
+        : DEFAULT_PREFERENCES.imageHost.type;
+      out.imageHost = {
+        ...DEFAULT_PREFERENCES.imageHost,
+        target: rawHost.target === "imageHost" ? "imageHost" : "local",
+        type: hostType,
+        fallbackToLocal:
+          typeof rawHost.fallbackToLocal === "boolean"
+            ? rawHost.fallbackToLocal
+            : DEFAULT_PREFERENCES.imageHost.fallbackToLocal,
+        aliyun: { ...DEFAULT_PREFERENCES.imageHost.aliyun, ...(rawHost.aliyun ?? {}) },
+        tencent: { ...DEFAULT_PREFERENCES.imageHost.tencent, ...(rawHost.tencent ?? {}) },
+        qiniu: { ...DEFAULT_PREFERENCES.imageHost.qiniu, ...(rawHost.qiniu ?? {}) },
+        gitee: { ...DEFAULT_PREFERENCES.imageHost.gitee, ...(rawHost.gitee ?? {}) },
+        custom: { ...DEFAULT_PREFERENCES.imageHost.custom, ...(rawHost.custom ?? {}) },
+      };
+    }
   } catch {
     /* 坏数据静默回落默认值 */
   }
@@ -143,6 +164,7 @@ const PERSISTED_KEYS = [
   "restoreFolder",
   "showAllFiles",
   "autoCheckUpdate",
+  "imageHost",
 ] as const satisfies readonly (keyof Settings)[];
 
 function persistPreferences(settings: Settings) {
@@ -154,6 +176,7 @@ function persistPreferences(settings: Settings) {
     restoreFolder: settings.restoreFolder,
     showAllFiles: settings.showAllFiles,
     autoCheckUpdate: settings.autoCheckUpdate,
+    imageHost: settings.imageHost,
   };
   try {
     localStorage.setItem("mdcraft:settings", JSON.stringify(prefs));

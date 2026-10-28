@@ -1,6 +1,11 @@
 // 设置配置的 JSON 备份格式：只包含用户偏好，不包含文档、最近文件等数据。
 
-import { THEME_MODES, THEME_PALETTES, type Settings } from "./types";
+import {
+  THEME_MODES,
+  THEME_PALETTES,
+  DEFAULT_IMAGE_HOST_CONFIG,
+  type Settings,
+} from "./types";
 import { normalizeThemePalette, resolveLegacyThemeMode } from "./theme";
 
 const BACKUP_VERSION = 1;
@@ -29,6 +34,7 @@ export function settingsSnapshot(settings: Settings): Settings {
     restoreFolder: settings.restoreFolder,
     showAllFiles: settings.showAllFiles,
     autoCheckUpdate: settings.autoCheckUpdate,
+    imageHost: settings.imageHost,
   };
 }
 
@@ -100,6 +106,27 @@ export function parseSettingsBackup(raw: string): Partial<Settings> {
   if (typeof data.restoreFolder === "boolean") patch.restoreFolder = data.restoreFolder;
   if (typeof data.showAllFiles === "boolean") patch.showAllFiles = data.showAllFiles;
   if (typeof data.autoCheckUpdate === "boolean") patch.autoCheckUpdate = data.autoCheckUpdate;
+  if (data.imageHost && typeof data.imageHost === "object" && !Array.isArray(data.imageHost)) {
+    const rawHost = data.imageHost as Record<string, any>;
+    const validTypes = ["aliyun", "tencent", "qiniu", "gitee", "custom"];
+    const hostType = validTypes.includes(rawHost.type)
+      ? rawHost.type
+      : DEFAULT_IMAGE_HOST_CONFIG.type;
+    patch.imageHost = {
+      ...DEFAULT_IMAGE_HOST_CONFIG,
+      target: rawHost.target === "imageHost" ? "imageHost" : "local",
+      type: hostType,
+      fallbackToLocal:
+        typeof rawHost.fallbackToLocal === "boolean"
+          ? rawHost.fallbackToLocal
+          : DEFAULT_IMAGE_HOST_CONFIG.fallbackToLocal,
+      aliyun: { ...DEFAULT_IMAGE_HOST_CONFIG.aliyun, ...(rawHost.aliyun ?? {}) },
+      tencent: { ...DEFAULT_IMAGE_HOST_CONFIG.tencent, ...(rawHost.tencent ?? {}) },
+      qiniu: { ...DEFAULT_IMAGE_HOST_CONFIG.qiniu, ...(rawHost.qiniu ?? {}) },
+      gitee: { ...DEFAULT_IMAGE_HOST_CONFIG.gitee, ...(rawHost.gitee ?? {}) },
+      custom: { ...DEFAULT_IMAGE_HOST_CONFIG.custom, ...(rawHost.custom ?? {}) },
+    };
+  }
   if (
     typeof data.sidebarTab === "string" &&
     (SIDEBAR_TABS as readonly string[]).includes(data.sidebarTab)

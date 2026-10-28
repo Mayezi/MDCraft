@@ -77,6 +77,136 @@ export const THEME_PALETTES: { id: ThemePalette; label: string; color: string }[
   { id: "claude", label: "Claude Code", color: "#c47a50" },
 ];
 
+export type ImageStorageTarget = "local" | "imageHost";
+
+export type ImageHostType = "aliyun" | "tencent" | "qiniu" | "gitee" | "custom";
+
+export interface ImageHostConfig {
+  /** 存储目标：local (本地 assets 目录) | imageHost (云端图床) */
+  target: ImageStorageTarget;
+  /** 图床类型：aliyun | tencent | qiniu | gitee | custom */
+  type: ImageHostType;
+  /** 图床上传失败时是否自动回退至本地存储保存（桌面模式生效） */
+  fallbackToLocal: boolean;
+
+  /** 阿里云 OSS 配置 */
+  aliyun: {
+    /** Bucket 名称 */
+    bucket: string;
+    /** 地域节点，如 oss-cn-hangzhou */
+    region: string;
+    /** AccessKey ID */
+    accessKeyId: string;
+    /** AccessKey Secret */
+    accessKeySecret: string;
+    /** 存储目录前缀，如 images/ */
+    dir: string;
+    /** 自定义绑定域名 / CDN 域名（选填） */
+    customUrl: string;
+  };
+
+  /** 腾讯云 COS 配置 */
+  tencent: {
+    /** 存储桶名称（含 AppId，如 mybucket-1250000000） */
+    bucket: string;
+    /** 所属地域，如 ap-shanghai */
+    region: string;
+    /** SecretId */
+    secretId: string;
+    /** SecretKey */
+    secretKey: string;
+    /** 存储目录前缀，如 images/ */
+    dir: string;
+    /** 自定义加速域名（选填） */
+    customUrl: string;
+  };
+
+  /** 七牛云 Kodo 配置 */
+  qiniu: {
+    /** 空间名称 Bucket */
+    bucket: string;
+    /** 上传区域地址，如 https://upload.qiniup.com */
+    uploadUrl: string;
+    /** AccessKey (AK) */
+    accessKey: string;
+    /** SecretKey (SK) */
+    secretKey: string;
+    /** 访问外链域名（必填，如 https://img.example.com） */
+    domain: string;
+    /** 存储目录前缀，如 images/ */
+    dir: string;
+  };
+
+  /** Gitee 码云图床配置 */
+  gitee: {
+    /** 用户名/仓库名，如 owner/repo */
+    repo: string;
+    /** 分支名，默认 master */
+    branch: string;
+    /** 存储目录路径，如 images/ */
+    dir: string;
+    /** Gitee 私人令牌 Personal Access Token */
+    token: string;
+    /** 自定义访问域名或前缀（选填） */
+    customUrl: string;
+  };
+
+  /** 自定义图床 API */
+  custom: {
+    /** 接收上传的 API 接口 URL (POST) */
+    uploadUrl: string;
+    /** 请求头 Header (JSON 或每行 Key: Value，如 Authorization: Bearer xxx) */
+    headers: string;
+    /** 表单文件字段名称，默认 file */
+    paramName: string;
+    /** 响应 JSON 中图片 URL 的键路径，默认 url（支持嵌套如 data.url） */
+    jsonPath: string;
+  };
+}
+
+export const DEFAULT_IMAGE_HOST_CONFIG: ImageHostConfig = {
+  target: "local",
+  type: "aliyun",
+  fallbackToLocal: true,
+  aliyun: {
+    bucket: "",
+    region: "oss-cn-hangzhou",
+    accessKeyId: "",
+    accessKeySecret: "",
+    dir: "images/",
+    customUrl: "",
+  },
+  tencent: {
+    bucket: "",
+    region: "ap-shanghai",
+    secretId: "",
+    secretKey: "",
+    dir: "images/",
+    customUrl: "",
+  },
+  qiniu: {
+    bucket: "",
+    uploadUrl: "https://upload.qiniup.com",
+    accessKey: "",
+    secretKey: "",
+    domain: "",
+    dir: "images/",
+  },
+  gitee: {
+    repo: "",
+    branch: "master",
+    dir: "images/",
+    token: "",
+    customUrl: "",
+  },
+  custom: {
+    uploadUrl: "",
+    headers: "",
+    paramName: "file",
+    jsonPath: "url",
+  },
+};
+
 export interface Settings {
   /** 主题模式（浅色 / 深色） */
   themeMode: ThemeMode;
@@ -102,6 +232,8 @@ export interface Settings {
   showAllFiles: boolean;
   /** 启动时自动检查更新 */
   autoCheckUpdate: boolean;
+  /** 图片存储与图床配置 */
+  imageHost: ImageHostConfig;
 }
 
 /** 可持久化偏好的默认值（不含主题/侧栏等由各自入口管理的字段） */
@@ -114,6 +246,7 @@ export const DEFAULT_PREFERENCES: Pick<
   | "restoreFolder"
   | "showAllFiles"
   | "autoCheckUpdate"
+  | "imageHost"
 > = {
   fontSize: null,
   lineHeight: null,
@@ -122,4 +255,5 @@ export const DEFAULT_PREFERENCES: Pick<
   restoreFolder: true,
   showAllFiles: false,
   autoCheckUpdate: true,
+  imageHost: DEFAULT_IMAGE_HOST_CONFIG,
 };

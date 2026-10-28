@@ -8,7 +8,9 @@
 import { EditorView } from "@codemirror/view";
 import type { Extension } from "@codemirror/state";
 import * as backend from "../lib/backend";
-import { notifyError } from "../lib/notify";
+import { useStore } from "../store";
+import { uploadImageToHost } from "../lib/imageHost";
+import { notify, notifyError, notifySuccess } from "../lib/notify";
 
 /** 当前活动文档的磁盘路径（null = 未保存草稿）——渲染相对图片路径时作为解析基准 */
 let activeDocPath: string | null = null;
@@ -94,39 +96,96 @@ function insertBlock(view: EditorView, text: string, pos?: number) {
   view.focus();
 }
 
+/** 保存图片至本地 assets 目录 */
+async function saveLocalImages(
+  files: File[],
+  ensureSaved: EnsureSaved,
+): Promise<string[]> {
+  let docPath = docDirOf(activeDocPath) ? activeDocPath : null;
+  if (!docPath) {
+    docPath = await ensureSaved();
+    if (!docPath) return []; // 用户取消另存为
+    setActiveDocPath(docPath);
+  }
+  const links: string[] = [];
+  for (const f of files) {
+    const buf = new Uint8Array(await f.arrayBuffer());
+    const ext = extFromMime(f.type) || extFromName(f.name);
+    const rel = await backend.saveAsset(docPath, buf, ext);
+    links.push(`![](${rel})`);
+  }
+  return links;
+}
+
 async function saveImages(
   view: EditorView,
   files: File[],
   pos: number | undefined,
   ensureSaved: EnsureSaved,
 ) {
+  const settings = useStore.getState().settings;
+  const imageHost = settings?.imageHost;
+  const useCloudHost = imageHost?.target === "imageHost";
+
   try {
-    // 伪路径（mdcraft:doc:）与 null 都视为未保存：必须以真实磁盘目录为基准
-    let docPath = docDirOf(activeDocPath) ? activeDocPath : null;
-    if (!docPath) {
-      docPath = await ensureSaved();
-      if (!docPath) return; // 用户取消另存为 → 放弃本次粘贴
-      setActiveDocPath(docPath);
+    if (useCloudHost) {
+      // 开启了云端图床：尝试上传至图床
+      notify(`正在上传 ${files.length} 张图片至图床…`, "info");
+      try {
+        const links: string[] = [];
+        for (const f of files) {
+          const buf = new Uint8Array(await f.arrayBuffer());
+          const ext = extFromMime(f.type) || extFromName(f.name);
+          const url = await uploadImageToHost(
+            { data: buf, name: f.name || `image.${ext}`, mime: f.type },
+            imageHost,
+          );
+          links.push(`![](${url})`);
+        }
+        insertBlock(view, links.join("\n"), pos);
+        notifySuccess("图片已成功上传至图床并插入");
+        return;
+      } catch (uploadErr) {
+        console.warn("图床上传失败：", uploadErr);
+        const errMsg = uploadErr instanceof Error ? uploadErr.message : String(uploadErr);
+
+        // 如果开启了失败回退，且当前在桌面端，回退到本地存储
+        if (imageHost.fallbackToLocal && backend.isTauri) {
+          notify(`图床上传失败（${errMsg}），正在自动保存至本地 assets…`, "info");
+          const links = await saveLocalImages(files, ensureSaved);
+          if (links.length) {
+            insertBlock(view, links.join("\n"), pos);
+            notifySuccess("已降级保存至本地 assets 目录");
+          }
+          return;
+        }
+        throw new Error(`图床上传失败：${errMsg}`);
+      }
+    } else {
+      // 本地存储模式
+      if (!backend.isTauri) {
+        notifyError("本地图片保存仅桌面模式可用；可在「设置 → 图片与图床」中开启云端图床");
+        return;
+      }
+      const links = await saveLocalImages(files, ensureSaved);
+      if (links.length) {
+        insertBlock(view, links.join("\n"), pos);
+      }
     }
-    const links: string[] = [];
-    for (const f of files) {
-      const buf = new Uint8Array(await f.arrayBuffer());
-      const ext = extFromMime(f.type) || extFromName(f.name);
-      const rel = await backend.saveAsset(docPath, buf, ext);
-      links.push(`![](${rel})`);
-    }
-    insertBlock(view, links.join("\n"), pos);
   } catch (e) {
-    console.error("图片保存失败:", e);
-    notifyError(`图片保存失败：${e instanceof Error ? e.message : String(e)}`);
+    console.error("图片处理失败:", e);
+    notifyError(`图片处理失败：${e instanceof Error ? e.message : String(e)}`);
   }
 }
 
-/** 粘贴 / 拖拽图片 → 落盘到文档同级 assets/ 并插入相对路径引用（仅桌面模式） */
+/** 粘贴 / 拖拽图片 → 支持落盘本地 assets 或直传云端图床 */
 export function imageAssets(ensureSaved: EnsureSaved): Extension {
   return EditorView.domEventHandlers({
     paste(event, view) {
-      if (!backend.isTauri) return false;
+      const settings = useStore.getState().settings;
+      const useCloudHost = settings?.imageHost?.target === "imageHost";
+      if (!backend.isTauri && !useCloudHost) return false;
+
       const files = imageFiles(event.clipboardData);
       if (!files.length) return false;
       event.preventDefault();
@@ -134,7 +193,10 @@ export function imageAssets(ensureSaved: EnsureSaved): Extension {
       return true;
     },
     drop(event, view) {
-      if (!backend.isTauri) return false;
+      const settings = useStore.getState().settings;
+      const useCloudHost = settings?.imageHost?.target === "imageHost";
+      if (!backend.isTauri && !useCloudHost) return false;
+
       const files = imageFiles(event.dataTransfer);
       if (!files.length) return false;
       event.preventDefault();
