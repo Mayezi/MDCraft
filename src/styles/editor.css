@@ -230,9 +230,10 @@
   color: var(--inline-code-color);
   border: 1px solid var(--inline-code-border);
   border-radius: 4px;
-  padding: 1px 5px;
+  padding: 0.1em 0.4em;
   font-family: var(--mono-font);
-  font-size: 0.88em;
+  font-size: 0.86em;
+  vertical-align: 0.04em; /* 等宽字体基线略低于衬线/无衬线字体，微调使底部视觉对齐 */
 }
 .md-link {
   color: var(--link-color);
@@ -274,6 +275,8 @@
 }
 .cm-editor .cm-line.md-list-line {
   text-indent: -1.4em;
+  padding-top: 0.08em;
+  padding-bottom: 0.08em;
 }
 .cm-editor .cm-line.md-list-line[data-depth="1"] { padding-left: calc(var(--md-list-base) + 1.4em) !important; }
 .cm-editor .cm-line.md-list-line[data-depth="2"] { padding-left: calc(var(--md-list-base) + 3.4em) !important; }
@@ -290,17 +293,19 @@
 .md-highlight {
   background: color-mix(in srgb, var(--accent) 26%, transparent);
   border-radius: 3px;
-  padding: 0.05em 0.2em;
+  padding: 0.1em 0.25em;
 }
 
 /* 上标 / 下标 / 下划线 */
 .md-sub {
   vertical-align: sub;
   font-size: 0.78em;
+  line-height: 0;
 }
 .md-sup {
   vertical-align: super;
   font-size: 0.78em;
+  line-height: 0;
 }
 .md-underline {
   text-decoration: underline;
@@ -475,7 +480,7 @@
 .md-image-wrap {
   display: block;
   text-align: center;
-  padding: 6px 0;
+  padding: 0.5em 0;
 }
 .md-image-wrap img {
   max-width: 100%;
@@ -553,35 +558,35 @@
   font-size: var(--h1-fs);
   font-weight: 700;
   color: var(--heading-color);
-  padding: 0.55em 0 0.28em;
+  padding: 0.6rem 0 0.2rem;
 }
 .md-line-h2 {
   font-size: var(--h2-fs);
   font-weight: 700;
   color: var(--heading-color);
-  padding: 0.5em 0 0.22em;
+  padding: 0.5rem 0 0.18rem;
 }
 .md-line-h3 {
   font-size: var(--h3-fs);
   font-weight: 650;
   color: var(--heading-color);
-  padding: 0.42em 0 0.18em;
+  padding: 0.42rem 0 0.14rem;
 }
 .md-line-h4 {
   font-size: var(--h4-fs);
   font-weight: 650;
-  padding: 0.38em 0 0.14em;
+  padding: 0.35rem 0 0.1rem;
 }
 .md-line-h5 {
   font-size: 1em;
   font-weight: 650;
-  padding: 0.34em 0 0.12em;
+  padding: 0.3rem 0 0.08rem;
 }
 .md-line-h6 {
   font-size: 1em;
   font-weight: 650;
   color: var(--fg-soft);
-  padding: 0.32em 0 0.1em;
+  padding: 0.28rem 0 0.08rem;
 }
 
 /* 引用块：无背景色，仅左侧竖线（data-depth 表达嵌套层级）。
@@ -594,6 +599,8 @@
   --quote-line: linear-gradient(to right, var(--quote-border), var(--quote-border));
   color: var(--quote-color);
   padding-left: calc(var(--md-quote-base, 6px) + 1.1em) !important;
+  padding-top: 0.12em;
+  padding-bottom: 0.12em;
   background-image: var(--quote-line);
   background-size: 3px 100%;
   background-position: var(--md-quote-base, 6px) 0;
@@ -757,7 +764,7 @@
   width: 100%;
   max-width: 100%;
   box-sizing: border-box;
-  padding: 0.4em 0;
+  padding: 0.5em 0;
 }
 .md-code-block {
   width: 100%;
@@ -971,14 +978,15 @@
 
 /* 段落间距（padding 而非 margin：CM6 行测量限制） */
 .md-line-para {
-  padding-top: 0.38em;
+  padding-top: 0.28em;
+  padding-bottom: 0.28em;
 }
 
 /* GFM 表格渲染件（块级 widget，可交互）
    左对齐（上下间距 .8em 0），宽度随内容；
    position:relative 供编辑工具栏悬浮（absolute 不占布局，无 heightMap 漂移） */
 .md-table-wrapper {
-  padding: 0.8em 0;
+  padding: 0.6em 0;
   position: relative;
 }
 /* ============================================================
