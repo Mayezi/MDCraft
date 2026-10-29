@@ -1299,13 +1299,19 @@
   user-select: none;
 }
 
-/* 列宽拖拽（思源式）：右缘热区光标；固定布局下解除内容宽钳制 */
+/* 基础表格部件（GFM 表格）：默认在编辑器可用宽度内自适应展开，解除硬编码列宽钳制 */
+.md-table {
+  border-collapse: collapse;
+  border-spacing: 0;
+  max-width: 100%;
+}
+.md-table.md-table-fixed {
+  max-width: none;
+}
+
+/* 列宽拖拽（思源式）：右缘热区光标 */
 .md-table .md-col-resizer {
   cursor: col-resize !important;
-}
-.md-table.md-table-fixed th,
-.md-table.md-table-fixed td {
-  max-width: none;
 }
 .md-table-resizing,
 .md-table-resizing * {
@@ -1317,7 +1323,6 @@
 .md-table td {
   border: 1px solid var(--table-border);
   padding: 6px 13px;
-  max-width: 420px;
   cursor: text;
   /* 渲染态保留单元格内空白 / 换行（行内 Markdown 渲染后仍与源码一致） */
   white-space: pre-wrap;
